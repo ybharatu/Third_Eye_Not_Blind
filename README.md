@@ -3,3 +3,4 @@ Senior Design
 
 Authors:
   - Yash Bharatula
+  - Kyla Hayes
