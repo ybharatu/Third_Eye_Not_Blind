@@ -1,5 +1,4 @@
-# Third_E
-ye_Not_Blind
+# Third_Eye_Not_Blind 
 Senior Design
 
 Authors:
