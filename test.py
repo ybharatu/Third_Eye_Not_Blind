@@ -5,11 +5,11 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import numpy as np
 import cv2
+from collections import deque as ImgBuf
 import math
 import os
 #from moviepy.editor import VideoFileClip
 #from IPython.display import HTML
-
 
 def grayscale(img):
     """Applies the Grayscale transform
@@ -95,7 +95,10 @@ def weighted_img(img, initial_img, α=0.8, β=1., λ=0.):
     """
     return cv2.addWeighted(initial_img, α, img, β, λ)
 
-def process_frame(image):
+#def get_images(img_buf):
+
+
+def process_frame(img_buf):
     global first_frame
 
     gray_image = grayscale(image)
@@ -145,6 +148,13 @@ def process_frame(image):
 #     processed = process_frame(image)
 #     mpimg.imsave("test_images/annotated_"+source_img,processed)
 
-image = mpimg.imread("road_sample_4.jpg")
-processed = process_frame(image)
-mpimg.imsave("road_sample_processed_4.jpg", processed)
+if __name__ == "__main__":
+    sample_num = 2;
+    filename = "road_sample_" + sample_num.__str__()
+    ext = '.jpg'
+    image = mpimg.imread(filename + ext)
+
+    img_buf = ImgBuf(image)
+
+    processed = process_frame(img_buf.pop())
+    mpimg.imsave(filename + "_processed" + ext, processed)
