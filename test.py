@@ -6,10 +6,15 @@ import matplotlib.image as mpimg
 import numpy as np
 import cv2
 from collections import deque as ImgBuf
+import threading
 import math
 import os
 #from moviepy.editor import VideoFileClip
 #from IPython.display import HTML
+
+sample_num = 2;
+filename = "road_sample_" + sample_num.__str__()
+ext = '.jpg'
 
 def grayscale(img):
     """Applies the Grayscale transform
@@ -95,53 +100,60 @@ def weighted_img(img, initial_img, α=0.8, β=1., λ=0.):
     """
     return cv2.addWeighted(initial_img, α, img, β, λ)
 
-#def get_images(img_buf):
-
+def get_images(img_buf):
+    image = mpimg.imread(filename + ext)
 
 def process_frame(img_buf):
-    global first_frame
+    if len(img_buf) is not 0:
+        image = img_buf.pop()
 
-    gray_image = grayscale(image)
-    img_hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
-    #hsv = [hue, saturation, value]
-    #more accurate range for yellow since it is not strictly black, white, r, g, or b
+        gray_image = grayscale(image)
+        img_hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+        #hsv = [hue, saturation, value]
+        #more accurate range for yellow since it is not strictly black, white, r, g, or b
 
-    lower_yellow = np.array([20, 100, 100], dtype = "uint8")
-    upper_yellow = np.array([30, 255, 255], dtype="uint8")
+        lower_yellow = np.array([20, 100, 100], dtype = "uint8")
+        upper_yellow = np.array([30, 255, 255], dtype="uint8")
 
-    mask_yellow = cv2.inRange(img_hsv, lower_yellow, upper_yellow)
-    mask_white = cv2.inRange(gray_image, 200, 255)
-    mask_yw = cv2.bitwise_or(mask_white, mask_yellow)
-    mask_yw_image = cv2.bitwise_and(gray_image, mask_yw)
+        mask_yellow = cv2.inRange(img_hsv, lower_yellow, upper_yellow)
+        mask_white = cv2.inRange(gray_image, 200, 255)
+        mask_yw = cv2.bitwise_or(mask_white, mask_yellow)
+        mask_yw_image = cv2.bitwise_and(gray_image, mask_yw)
 
-    kernel_size = 5
-    gauss_gray = gaussian_blur(mask_yw_image,kernel_size)
+        kernel_size = 5
+        gauss_gray = gaussian_blur(mask_yw_image,kernel_size)
 
-    #same as quiz values
-    low_threshold = 50
-    high_threshold = 150
-    canny_edges = canny(gauss_gray,low_threshold,high_threshold)
+        #same as quiz values
+        low_threshold = 50
+        high_threshold = 150
+        canny_edges = canny(gauss_gray,low_threshold,high_threshold)
 
-    imshape = image.shape
-    lower_left = [imshape[1]/9,imshape[0]]
-    lower_right = [imshape[1]-imshape[1]/9,imshape[0]]
-    top_left = [imshape[1]/2-imshape[1]/8,imshape[0]/2+imshape[0]/10]
-    top_right = [imshape[1]/2+imshape[1]/8,imshape[0]/2+imshape[0]/10]
-    vertices = [np.array([lower_left,top_left,top_right,lower_right],dtype=np.int32)]
-    roi_image = region_of_interest(canny_edges, vertices)
+        imshape = image.shape
+        lower_left = [imshape[1]/9,imshape[0]]
+        lower_right = [imshape[1]-imshape[1]/9,imshape[0]]
+        top_left = [imshape[1]/2-imshape[1]/8,imshape[0]/2+imshape[0]/10]
+        top_right = [imshape[1]/2+imshape[1]/8,imshape[0]/2+imshape[0]/10]
+        vertices = [np.array([lower_left,top_left,top_right,lower_right],dtype=np.int32)]
+        roi_image = region_of_interest(canny_edges, vertices)
 
-    #rho and theta are the distance and angular resolution of the grid in Hough space
-    #same values as quiz
-    rho = 2
-    theta = np.pi/180
-    #threshold is minimum number of intersections in a grid for candidate line to go to output
-    threshold = 20
-    min_line_len = 50
-    max_line_gap = 200
+        #rho and theta are the distance and angular resolution of the grid in Hough space
+        #same values as quiz
+        rho = 2
+        theta = np.pi/180
+        #threshold is minimum number of intersections in a grid for candidate line to go to output
+        threshold = 20
+        min_line_len = 50
+        max_line_gap = 200
 
-    line_image = hough_lines(roi_image, rho, theta, threshold, min_line_len, max_line_gap)
-    result = weighted_img(line_image, image, α=0.8, β=1., λ=0.)
-    return result
+        line_image = hough_lines(roi_image, rho, theta, threshold, min_line_len, max_line_gap)
+        result = weighted_img(line_image, image, α=0.8, β=1., λ=0.)
+        return result
+
+def write_images(img_buf):
+    if(len(img_buf) is not 0):
+
+    else:
+
 
 # for source_img in os.listdir("test_images/"):
 #     image = mpimg.imread("test_images/"+source_img)
@@ -149,12 +161,13 @@ def process_frame(img_buf):
 #     mpimg.imsave("test_images/annotated_"+source_img,processed)
 
 if __name__ == "__main__":
-    sample_num = 2;
-    filename = "road_sample_" + sample_num.__str__()
-    ext = '.jpg'
-    image = mpimg.imread(filename + ext)
 
-    img_buf = ImgBuf(image)
+    img_buf = ImgBuf();
+    out_buf = ImgBuf();
+
+    imgOpener = threading.Thread(target=get_images(img_buf))
+    imgProcess = threading.Thread(target=process_frame(img_buf))
+    imgWriter = threading.Thread(target=write_images(img_buf))
 
     processed = process_frame(img_buf.pop())
     mpimg.imsave(filename + "_processed" + ext, processed)
