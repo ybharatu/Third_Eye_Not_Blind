@@ -7,12 +7,13 @@ import numpy as np
 import cv2
 import queue as ImgBuf
 import threading
+import time
 import math
 import os
 #from moviepy.editor import VideoFileClip
 #from IPython.display import HTML
 
-sample_num = 2;
+sample_num = 1;
 filename = "road_sample_" + sample_num.__str__()
 ext = '.jpg'
 
@@ -101,72 +102,80 @@ def weighted_img(img, initial_img, α=0.8, β=1., λ=0.):
     return cv2.addWeighted(initial_img, α, img, β, λ)
 
 def get_images(img_buf):
-    image = mpimg.imread(filename + ext)
-    while img_buf.full():
-        pass
+    imgs = 0
+    while imgs is not 100:
+        image = mpimg.imread(filename + ext)
+        while img_buf.full():
+            pass
 
-    img_buf.put(image)
-    print("Image in input buffer")
+        img_buf.put(image)
+        print("Image in input buffer")
+        imgs += 1
 
 def process_frame(img_buf,out_buf):
-    while img_buf.empty():
-        pass
+    imgs = 0
+    while imgs is not 100:
+        while img_buf.empty():
+            pass
 
-    image = img_buf.get()
-    gray_image = grayscale(image)
-    img_hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
-    #hsv = [hue, saturation, value]
-    #more accurate range for yellow since it is not strictly black, white, r, g, or b
+        image = img_buf.get()
+        gray_image = grayscale(image)
+        img_hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+        #hsv = [hue, saturation, value]
+        #more accurate range for yellow since it is not strictly black, white, r, g, or b
 
-    lower_yellow = np.array([20, 100, 100], dtype = "uint8")
-    upper_yellow = np.array([30, 255, 255], dtype="uint8")
+        lower_yellow = np.array([20, 100, 100], dtype = "uint8")
+        upper_yellow = np.array([30, 255, 255], dtype="uint8")
 
-    mask_yellow = cv2.inRange(img_hsv, lower_yellow, upper_yellow)
-    mask_white = cv2.inRange(gray_image, 200, 255)
-    mask_yw = cv2.bitwise_or(mask_white, mask_yellow)
-    mask_yw_image = cv2.bitwise_and(gray_image, mask_yw)
+        mask_yellow = cv2.inRange(img_hsv, lower_yellow, upper_yellow)
+        mask_white = cv2.inRange(gray_image, 200, 255)
+        mask_yw = cv2.bitwise_or(mask_white, mask_yellow)
+        mask_yw_image = cv2.bitwise_and(gray_image, mask_yw)
 
-    kernel_size = 5
-    gauss_gray = gaussian_blur(mask_yw_image,kernel_size)
+        kernel_size = 5
+        gauss_gray = gaussian_blur(mask_yw_image,kernel_size)
 
-    #same as quiz values
-    low_threshold = 50
-    high_threshold = 150
-    canny_edges = canny(gauss_gray,low_threshold,high_threshold)
+        #same as quiz values
+        low_threshold = 50
+        high_threshold = 150
+        canny_edges = canny(gauss_gray,low_threshold,high_threshold)
 
-    imshape = image.shape
-    lower_left = [imshape[1]/9,imshape[0]]
-    lower_right = [imshape[1]-imshape[1]/9,imshape[0]]
-    top_left = [imshape[1]/2-imshape[1]/8,imshape[0]/2+imshape[0]/10]
-    top_right = [imshape[1]/2+imshape[1]/8,imshape[0]/2+imshape[0]/10]
-    vertices = [np.array([lower_left,top_left,top_right,lower_right],dtype=np.int32)]
-    roi_image = region_of_interest(canny_edges, vertices)
+        imshape = image.shape
+        lower_left = [imshape[1]/9,imshape[0]]
+        lower_right = [imshape[1]-imshape[1]/9,imshape[0]]
+        top_left = [imshape[1]/2-imshape[1]/8,imshape[0]/2+imshape[0]/10]
+        top_right = [imshape[1]/2+imshape[1]/8,imshape[0]/2+imshape[0]/10]
+        vertices = [np.array([lower_left,top_left,top_right,lower_right],dtype=np.int32)]
+        roi_image = region_of_interest(canny_edges, vertices)
 
-    #rho and theta are the distance and angular resolution of the grid in Hough space
-    #same values as quiz
-    rho = 2
-    theta = np.pi/180
-    #threshold is minimum number of intersections in a grid for candidate line to go to output
-    threshold = 20
-    min_line_len = 50
-    max_line_gap = 200
+        #rho and theta are the distance and angular resolution of the grid in Hough space
+        #same values as quiz
+        rho = 2
+        theta = np.pi/180
+        #threshold is minimum number of intersections in a grid for candidate line to go to output
+        threshold = 20
+        min_line_len = 50
+        max_line_gap = 200
 
-    line_image = hough_lines(roi_image, rho, theta, threshold, min_line_len, max_line_gap)
-    result = weighted_img(line_image, image, α=0.8, β=1., λ=0.)
-    print("Finish Image")
-    while out_buf.full():
-        pass
-    out_buf.put(result)
-    print("Image in Output Buffer")
+        line_image = hough_lines(roi_image, rho, theta, threshold, min_line_len, max_line_gap)
+        result = weighted_img(line_image, image, α=0.8, β=1., λ=0.)
+        print("Finish Image")
+        while out_buf.full():
+            pass
+        out_buf.put(result)
+        print("Image in Output Buffer")
+        imgs += 1
 
 def write_images(out_buf):
-    while out_buf.empty():
-        pass
+    imgs = 0
+    while imgs is not 100:
+        while out_buf.empty():
+            pass
 
-    processed = out_buf.get()
-    mpimg.imsave(filename + "_processed" + ext, processed)
-    print("Written Image")
-
+        processed = out_buf.get()
+        mpimg.imsave(filename + "_processed" + ext, processed)
+        print("Written Image")
+        imgs += 1
 
 # for source_img in os.listdir("test_images/"):
 #     image = mpimg.imread("test_images/"+source_img)
@@ -175,12 +184,14 @@ def write_images(out_buf):
 
 if __name__ == "__main__":
 
+    start = time.time()
+
     img_buf = ImgBuf.Queue(10)
     out_buf = ImgBuf.Queue(10);
 
     imgOpener = threading.Thread(target=get_images,args=[img_buf])
     imgProcess = threading.Thread(target=process_frame,args=(img_buf, out_buf))
-    imgWriter = threading.Thread(target=write_images,args=[img_buf])
+    imgWriter = threading.Thread(target=write_images,args=[out_buf])
 
     imgOpener.start()
     imgProcess.start()
@@ -190,6 +201,8 @@ if __name__ == "__main__":
     imgProcess.join()
     imgWriter.join()
 
-    print("END Program")
+    end = time.time()
+
+    print("Time: " + str(end - start) + " s")
 
 
