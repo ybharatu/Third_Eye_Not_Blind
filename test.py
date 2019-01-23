@@ -1,8 +1,13 @@
 # Adapted from https://github.com/galenballew/SDC-Lane-and-Vehicle-Detection-Tracking
 
 #importing some useful packages
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
+
+import matplotlib
+matplotlib.use('PS')
 import matplotlib.image as mpimg
+import time
+
 import numpy as np
 import cv2
 import math
@@ -114,10 +119,12 @@ def process_frame(image):
     kernel_size = 5
     gauss_gray = gaussian_blur(mask_yw_image,kernel_size)
 
+    """
     #same as quiz values
     low_threshold = 50
     high_threshold = 150
     canny_edges = canny(gauss_gray,low_threshold,high_threshold)
+    """
 
     imshape = image.shape
     lower_left = [imshape[1]/9,imshape[0]]
@@ -125,7 +132,13 @@ def process_frame(image):
     top_left = [imshape[1]/2-imshape[1]/8,imshape[0]/2+imshape[0]/10]
     top_right = [imshape[1]/2+imshape[1]/8,imshape[0]/2+imshape[0]/10]
     vertices = [np.array([lower_left,top_left,top_right,lower_right],dtype=np.int32)]
-    roi_image = region_of_interest(canny_edges, vertices)
+    roi_image = region_of_interest(gauss_gray, vertices)
+
+    # ***new***
+    low_threshold = 50
+    high_threshold = 150
+    canny_edges = canny(roi_image, low_threshold, high_threshold)
+
 
     #rho and theta are the distance and angular resolution of the grid in Hough space
     #same values as quiz
@@ -136,15 +149,43 @@ def process_frame(image):
     min_line_len = 50
     max_line_gap = 200
 
-    line_image = hough_lines(roi_image, rho, theta, threshold, min_line_len, max_line_gap)
+    line_image = hough_lines(canny_edges, rho, theta, threshold, min_line_len, max_line_gap)
     result = weighted_img(line_image, image, α=0.8, β=1., λ=0.)
     return result
+    #return line_image
 
 # for source_img in os.listdir("test_images/"):
 #     image = mpimg.imread("test_images/"+source_img)
 #     processed = process_frame(image)
 #     mpimg.imsave("test_images/annotated_"+source_img,processed)
 
-image = mpimg.imread("road_sample_4.jpg")
-processed = process_frame(image)
-mpimg.imsave("road_sample_processed_4.jpg", processed)
+
+# code to capture video
+# import cv2
+vidcap = cv2.VideoCapture('challenge.mp4')
+#success,image = vidcap.read()
+success = True
+count = 0
+while success:
+  #cv2.imwrite("frame%d.jpg" % count, image)     # save frame as JPEG file
+  success,image = vidcap.read()
+  if success:
+    processed = process_frame(image)
+    mpimg.imsave("test_images/annotated_"+str(count), processed)
+    print('Read a new frame: ', success)
+    count += 1
+print(count)
+
+# code to find frames/sec
+"""
+count = 0
+t = 0
+start = time.time()
+while (t < 1):
+    t = time.time() - start
+    image = mpimg.imread("road_sample_4.jpg")
+    processed = process_frame(image)
+    mpimg.imsave("road_sample_processed_4.jpg", processed)
+    count += 1
+print(count)
+"""
