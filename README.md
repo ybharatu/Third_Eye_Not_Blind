@@ -4,4 +4,4 @@ Senior Design
 Authors:
   - Yash Bharatula
   - Kyla Hayes
-  - Michael Toner - Alex Symanski
+  - Michael Toner  - Alex Symanski
