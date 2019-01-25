@@ -5,146 +5,195 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import numpy as np
 import cv2
+import time
 import math
 import os
 #from moviepy.editor import VideoFileClip
 #from IPython.display import HTML
 
+def color_filter(image):
+    # convert to HLS to mask based on HLS
+    hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
+    lower = np.array([0, 190, 0])
+    upper = np.array([255, 255, 255])
+
+    yellower = np.array([10, 0, 90])
+    yelupper = np.array([50, 255, 255])
+
+    yellowmask = cv2.inRange(hls, yellower, yelupper)
+    whitemask = cv2.inRange(hls, lower, upper)
+
+    mask = cv2.bitwise_or(yellowmask, whitemask)
+    masked = cv2.bitwise_and(image, image, mask=mask)
+
+    return masked
 
 def grayscale(img):
-    """Applies the Grayscale transform
-    This will return an image with only one color channel
-    but NOTE: to see the returned image as grayscale
-    (assuming your grayscaled image is called 'gray')
-    you should call plt.imshow(gray, cmap='gray')"""
     return cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    # Or use BGR2GRAY if you read an image with cv2.imread()
-    # return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-def canny(img, low_threshold, high_threshold):
-    """Applies the Canny transform"""
-    return cv2.Canny(img, low_threshold, high_threshold)
+def canny(img):
+    return cv2.Canny(grayscale(img), 50, 120)
 
 def gaussian_blur(img, kernel_size):
     """Applies a Gaussian Noise kernel"""
     return cv2.GaussianBlur(img, (kernel_size, kernel_size), 0)
 
-def region_of_interest(img, vertices):
-    """
-    Applies an image mask.
-    Only keeps the region of the image defined by the polygon
-    formed from `vertices`. The rest of the image is set to black.
-    """
-    #defining a blank mask to start with
+def roi(img):
+    x = int(img.shape[1])
+    y = int(img.shape[0])
+    shape = np.array([[int(0), int(y)], [int(x), int(y)], [int(0.55*x), int(0.6*y)], [int(0.45*x), int(0.6*y)]])
+
+    #define a numpy array with the dimensions of img, but comprised of zeros
     mask = np.zeros_like(img)
 
-    #defining a 3 channel or 1 channel color to fill the mask with depending on the input image
+    #Uses 3 channels or 1 channel for color depending on input image
     if len(img.shape) > 2:
-        channel_count = img.shape[2]  # i.e. 3 or 4 depending on your image
+        channel_count = img.shape[2]
         ignore_mask_color = (255,) * channel_count
     else:
         ignore_mask_color = 255
 
-    #filling pixels inside the polygon defined by "vertices" with the fill color
-    cv2.fillPoly(mask, vertices, ignore_mask_color)
+    #creates a polygon with the mask color
+    cv2.fillPoly(mask, np.int32([shape]), ignore_mask_color)
 
-    #returning the image only where mask pixels are nonzero
+    #returns the image only where the mask pixels are not zero
     masked_image = cv2.bitwise_and(img, mask)
     return masked_image
 
 
-def draw_lines(img, lines, color=[255, 0, 0], thickness=2):
-    """
-    NOTE: this is the function you might want to use as a starting point once you want to
-    average/extrapolate the line segments you detect to map out the full
-    extent of the lane (going from the result shown in raw-lines-example.mp4
-    to that shown in P1_example.mp4).
-    Think about things like separating line segments by their
-    slope ((y2-y1)/(x2-x1)) to decide which segments are part of the left
-    line vs. the right line.  Then, you can average the position of each of
-    the lines and extrapolate to the top and bottom of the lane.
-    This function draws `lines` with `color` and `thickness`.
-    Lines are drawn on the image inplace (mutates the image).
-    If you want to make the lines semi-transparent, think about combining
-    this function with the weighted_img() function below
-    """
+rightSlope, leftSlope, rightIntercept, leftIntercept = [], [], [], []
+
+
+def draw_lines(img, lines, thickness=5):
+    global rightSlope, leftSlope, rightIntercept, leftIntercept
+    rightColor = [0, 255, 0]
+    leftColor = [255, 0, 0]
+
+    # this is used to filter out the outlying lines that can affect the average
+    # We then use the slope we determined to find the y-intercept of the filtered lines by solving for b in y=mx+b
     for line in lines:
-        for x1,y1,x2,y2 in line:
-            cv2.line(img, (x1, y1), (x2, y2), color, thickness)
+        for x1, y1, x2, y2 in line:
+            slope = (y1 - y2) / (x1 - x2)
+            if slope > 0.3:
+                if x1 > 500:
+                    yintercept = y2 - (slope * x2)
+                    rightSlope.append(slope)
+                    rightIntercept.append(yintercept)
+                else:
+                    None
+            elif slope < -0.3:
+                if x1 < 600:
+                    yintercept = y2 - (slope * x2)
+                    leftSlope.append(slope)
+                    leftIntercept.append(yintercept)
+
+
+                    # We use slicing operators and np.mean() to find the averages of the 30 previous frames
+    # This makes the lines more stable, and less likely to shift rapidly
+    leftavgSlope = np.mean(leftSlope[-30:])
+    leftavgIntercept = np.mean(leftIntercept[-30:])
+
+    rightavgSlope = np.mean(rightSlope[-30:])
+    rightavgIntercept = np.mean(rightIntercept[-30:])
+
+    # Here we plot the lines and the shape of the lane using the average slope and intercepts
+    try:
+        left_line_x1 = int((0.65 * img.shape[0] - leftavgIntercept) / leftavgSlope)
+        left_line_x2 = int((img.shape[0] - leftavgIntercept) / leftavgSlope)
+
+        right_line_x1 = int((0.65 * img.shape[0] - rightavgIntercept) / rightavgSlope)
+        right_line_x2 = int((img.shape[0] - rightavgIntercept) / rightavgSlope)
+
+        pts = np.array([[left_line_x1, int(0.65 * img.shape[0])], [left_line_x2, int(img.shape[0])],
+                        [right_line_x2, int(img.shape[0])], [right_line_x1, int(0.65 * img.shape[0])]], np.int32)
+        pts = pts.reshape((-1, 1, 2))
+        cv2.fillPoly(img, [pts], (0, 0, 255))
+
+        cv2.line(img, (left_line_x1, int(0.65 * img.shape[0])), (left_line_x2, int(img.shape[0])), leftColor, 10)
+        cv2.line(img, (right_line_x1, int(0.65 * img.shape[0])), (right_line_x2, int(img.shape[0])), rightColor, 10)
+    except ValueError:
+        # I keep getting errors for some reason, so I put this here. Idk if the error still persists.
+        pass
 
 def hough_lines(img, rho, theta, threshold, min_line_len, max_line_gap):
     """
     `img` should be the output of a Canny transform.
-    Returns an image with hough lines drawn.
     """
     lines = cv2.HoughLinesP(img, rho, theta, threshold, np.array([]), minLineLength=min_line_len, maxLineGap=max_line_gap)
     line_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
     draw_lines(line_img, lines)
     return line_img
+    #return lines
+
+def linedetect(img):
+    return hough_lines(img, 1, np.pi/180, 10, 20, 100)
 
 # Python 3 has support for cool math symbols.
 
 def weighted_img(img, initial_img, α=0.8, β=1., λ=0.):
     """
-    `img` is the output of the hough_lines(), An image with lines drawn on it.
-    Should be a blank image (all black) with lines drawn on it.
-    `initial_img` should be the image before any processing.
-    The result image is computed as follows:
     initial_img * α + img * β + λ
     NOTE: initial_img and img must be the same shape!
     """
     return cv2.addWeighted(initial_img, α, img, β, λ)
 
-def process_frame(image):
-    global first_frame
+def weightSum(input_set):
+    img = list(input_set)
+    return cv2.addWeighted(img[0], 1, img[1], 0.8, 0)
 
-    gray_image = grayscale(image)
-    img_hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
-    #hsv = [hue, saturation, value]
-    #more accurate range for yellow since it is not strictly black, white, r, g, or b
 
-    lower_yellow = np.array([20, 100, 100], dtype = "uint8")
-    upper_yellow = np.array([30, 255, 255], dtype="uint8")
+def processImage(image):
+    interest = roi(image)
+    filterimg = color_filter(interest)
+    canny = cv2.Canny(grayscale(filterimg), 50, 120)
+    myline = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
+    weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
 
-    mask_yellow = cv2.inRange(img_hsv, lower_yellow, upper_yellow)
-    mask_white = cv2.inRange(gray_image, 200, 255)
-    mask_yw = cv2.bitwise_or(mask_white, mask_yellow)
-    mask_yw_image = cv2.bitwise_and(gray_image, mask_yw)
-
-    kernel_size = 5
-    gauss_gray = gaussian_blur(mask_yw_image,kernel_size)
-
-    #same as quiz values
-    low_threshold = 50
-    high_threshold = 150
-    canny_edges = canny(gauss_gray,low_threshold,high_threshold)
-
-    imshape = image.shape
-    lower_left = [imshape[1]/9,imshape[0]]
-    lower_right = [imshape[1]-imshape[1]/9,imshape[0]]
-    top_left = [imshape[1]/2-imshape[1]/8,imshape[0]/2+imshape[0]/10]
-    top_right = [imshape[1]/2+imshape[1]/8,imshape[0]/2+imshape[0]/10]
-    vertices = [np.array([lower_left,top_left,top_right,lower_right],dtype=np.int32)]
-    roi_image = region_of_interest(canny_edges, vertices)
-
-    #rho and theta are the distance and angular resolution of the grid in Hough space
-    #same values as quiz
-    rho = 2
-    theta = np.pi/180
-    #threshold is minimum number of intersections in a grid for candidate line to go to output
-    threshold = 20
-    min_line_len = 50
-    max_line_gap = 200
-
-    line_image = hough_lines(roi_image, rho, theta, threshold, min_line_len, max_line_gap)
-    result = weighted_img(line_image, image, α=0.8, β=1., λ=0.)
-    return result
+    return weighted_img
+    #return myline
 
 # for source_img in os.listdir("test_images/"):
 #     image = mpimg.imread("test_images/"+source_img)
 #     processed = process_frame(image)
 #     mpimg.imsave("test_images/annotated_"+source_img,processed)
 
-image = mpimg.imread("road_sample_4.jpg")
-processed = process_frame(image)
+start = time.time()
+count = 0
+while(time.time() - start < 1):
+    image = mpimg.imread("road_sample_4.jpg")
+    processed = processImage(image)
+    count += 1
+print("Num Images per second = " + str(count));
+processed = processImage(image)
 mpimg.imsave("road_sample_processed_4.jpg", processed)
+
+
+# code to capture video
+# import cv2
+# vidcap = cv2.VideoCapture('challenge.mp4')
+# #success,image = vidcap.read()
+# success = True
+# count = 0
+# while success:
+#   #cv2.imwrite("frame%d.jpg" % count, image)     # save frame as JPEG file
+#   success,image = vidcap.read()
+#   if success:
+#     processed = processImage(image)
+#     mpimg.imsave("test_images/annotated_"+str(count), processed)
+#     print('Read a new frame: ', success)
+#     count += 1
+# print(count)
+
+### code to find frames/sec
+"""
+count = 0
+t = 0
+start = time.time()
+while (t < 1):
+    t = time.time() - start
+    image = mpimg.imread("road_sample_4.jpg")
+    processed = process_frame(image)
+    mpimg.imsave("road_sample_processed_4.jpg", processed)
+    count += 1
+print(count)
+"""
