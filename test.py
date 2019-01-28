@@ -6,8 +6,9 @@ import matplotlib.image as mpimg
 import numpy as np
 import cv2
 import time
-import math
+from multiprocessing import Process
 import os
+import math
 #from moviepy.editor import VideoFileClip
 #from IPython.display import HTML
 
@@ -143,10 +144,18 @@ def weightSum(input_set):
 
 
 def processImage(image):
+    start = time.time()
     interest = roi(image)
+    print("Region of Interest Time: " + str(time.time() - start) + " sec")
+    start = time.time()
     filterimg = color_filter(interest)
+    print("Color Filter Time: " + str(time.time() - start) + " sec")
+    start = time.time()
     canny = cv2.Canny(grayscale(filterimg), 50, 120)
+    print("Canny Edge + Grayscale Time: " + str(time.time() - start) + " sec")
+    start = time.time()
     myline = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
+    print("Hough Line Transform Time: " + str(time.time() - start) + " sec")
     weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
 
     return weighted_img
@@ -157,16 +166,23 @@ def processImage(image):
 #     processed = process_frame(image)
 #     mpimg.imsave("test_images/annotated_"+source_img,processed)
 
-start = time.time()
-count = 0
-while(time.time() - start < 1):
-    image = mpimg.imread("road_sample_4.jpg")
-    processed = processImage(image)
-    count += 1
-print("Num Images per second = " + str(count));
-processed = processImage(image)
-mpimg.imsave("road_sample_processed_4.jpg", processed)
+# Code to find frames per second
+# start = time.time()
+# count = 0
+# while(time.time() - start < 1):
+#     image = mpimg.imread("road_sample_4.jpg")
+#     processed = processImage(image)
+#     count += 1
+# print("Num Images per second = " + str(count));
+# processed = processImage(image)
+# mpimg.imsave("road_sample_processed_4.jpg", processed)
 
+# Code to find timing measurements
+start = time.time()
+image = mpimg.imread("road_sample_4.jpg")
+processed = processImage(image)
+print("Total Time: " + str(time.time() - start) + " sec")
+mpimg.imsave("road_sample_processed_4.jpg", processed)
 
 # code to capture video
 # import cv2
