@@ -6,11 +6,17 @@ import matplotlib.image as mpimg
 import numpy as np
 import cv2
 import time
+import queue as ImgBuf
 from multiprocessing import Process
+import multiprocessing
 import os
 import math
 #from moviepy.editor import VideoFileClip
 #from IPython.display import HTML
+
+sample_num = 1;
+filename = "road_sample_" + sample_num.__str__()
+ext = '.jpg'
 
 def color_filter(image):
     # convert to HLS to mask based on HLS
@@ -142,23 +148,56 @@ def weightSum(input_set):
     img = list(input_set)
     return cv2.addWeighted(img[0], 1, img[1], 0.8, 0)
 
+def write_images(out_buf):
+    imgs = 0
+    while imgs is not 100:
+        while out_buf.empty():
+            pass
 
-def processImage(image):
-    start = time.time()
-    interest = roi(image)
-    print("Region of Interest Time: " + str(time.time() - start) + " sec")
-    start = time.time()
-    filterimg = color_filter(interest)
-    print("Color Filter Time: " + str(time.time() - start) + " sec")
-    start = time.time()
-    canny = cv2.Canny(grayscale(filterimg), 50, 120)
-    print("Canny Edge + Grayscale Time: " + str(time.time() - start) + " sec")
-    start = time.time()
-    myline = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
-    print("Hough Line Transform Time: " + str(time.time() - start) + " sec")
-    weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
+        processed = out_buf.get()
+        #mpimg.imsave(filename + "_processed" + ext, processed)
+        print("Written Image")
+        imgs += 1
 
-    return weighted_img
+def get_images(img_buf):
+    imgs = 0
+    while imgs is not 100:
+        image = mpimg.imread(filename + ext)
+        while img_buf.full():
+            pass
+
+        img_buf.put(image)
+        print("Image in input buffer")
+        imgs += 1
+
+def processImage(img_buf, out_buf):
+    imgs = 0
+    while imgs is not 100:
+        while img_buf.empty():
+            pass
+        image = img_buf.get()
+        #start = time.time()
+        interest = roi(image)
+        #print("Region of Interest Time: " + str(time.time() - start) + " sec")
+        #start = time.time()
+        filterimg = color_filter(interest)
+        #print("Color Filter Time: " + str(time.time() - start) + " sec")
+        #start = time.time()
+        canny = cv2.Canny(grayscale(filterimg), 50, 120)
+        #print("Canny Edge + Grayscale Time: " + str(time.time() - start) + " sec")
+        #start = time.time()
+        myline = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
+        #print("Hough Line Transform Time: " + str(time.time() - start) + " sec")
+        weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
+
+        print("Finish Image")
+        while out_buf.full():
+            pass
+        out_buf.put(weighted_img)
+        print("Image in Output Buffer")
+        imgs += 1
+
+    #return weighted_img
     #return myline
 
 # for source_img in os.listdir("test_images/"):
@@ -178,12 +217,34 @@ def processImage(image):
 # mpimg.imsave("road_sample_processed_4.jpg", processed)
 
 # Code to find timing measurements
-start = time.time()
-image = mpimg.imread("road_sample_4.jpg")
-processed = processImage(image)
-print("Total Time: " + str(time.time() - start) + " sec")
-mpimg.imsave("road_sample_processed_4.jpg", processed)
+# start = time.time()
+# image = mpimg.imread("road_sample_4.jpg")
+# processed = processImage(image)
+# print("Total Time: " + str(time.time() - start) + " sec")
+# mpimg.imsave("road_sample_processed_4.jpg", processed)
 
+# Code to test Multiprocessing
+if __name__ ==  '__main__':
+    start = time.time()
+
+    img_buf = multiprocessing.Queue()
+    out_buf = multiprocessing.Queue()
+
+    img_opening_process = Process(target=get_images, args=[img_buf])
+    img_processing_process = Process(target=processImage, args=(img_buf, out_buf))
+    img_writing_process = Process(target=write_images, args=[out_buf])
+
+
+    img_opening_process.start()
+    img_processing_process.start()
+    img_writing_process.start()
+
+    img_opening_process.join()
+    img_processing_process.join()
+    img_writing_process.join()
+
+    end = time.time()
+    print("Total Time: " + str(end - start) + " sec")
 # code to capture video
 # import cv2
 # vidcap = cv2.VideoCapture('challenge.mp4')
