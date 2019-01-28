@@ -1,6 +1,8 @@
 # Adapted from https://github.com/galenballew/SDC-Lane-and-Vehicle-Detection-Tracking
 
 #importing some useful packages
+import matplotlib
+matplotlib.use('PS')
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import numpy as np
@@ -16,7 +18,7 @@ import math
 
 sample_num = 1;
 filename = "road_sample_" + sample_num.__str__()
-ext = '.jpg'
+ext = '.png'
 
 def color_filter(image):
     # convert to HLS to mask based on HLS
@@ -94,17 +96,17 @@ def draw_lines(img, lines, thickness=5):
                     leftSlope.append(slope)
                     leftIntercept.append(yintercept)
 
-
+    try:
                     # We use slicing operators and np.mean() to find the averages of the 30 previous frames
     # This makes the lines more stable, and less likely to shift rapidly
-    leftavgSlope = np.mean(leftSlope[-30:])
-    leftavgIntercept = np.mean(leftIntercept[-30:])
+        leftavgSlope = np.mean(leftSlope[-30:])
+        leftavgIntercept = np.mean(leftIntercept[-30:])
 
-    rightavgSlope = np.mean(rightSlope[-30:])
-    rightavgIntercept = np.mean(rightIntercept[-30:])
+        rightavgSlope = np.mean(rightSlope[-30:])
+        rightavgIntercept = np.mean(rightIntercept[-30:])
 
     # Here we plot the lines and the shape of the lane using the average slope and intercepts
-    try:
+    #try:
         left_line_x1 = int((0.65 * img.shape[0] - leftavgIntercept) / leftavgSlope)
         left_line_x2 = int((img.shape[0] - leftavgIntercept) / leftavgSlope)
 
@@ -155,11 +157,12 @@ def write_images(out_buf):
             pass
 
         processed = out_buf.get()
-        #mpimg.imsave(filename + "_processed" + ext, processed)
-        print("Written Image")
+        mpimg.imsave("test_images/annotaded_" + str(imgs) + ext, processed)
+        print("Written Image - PID: " + str(os.getpid()))
         imgs += 1
 
 def get_images(img_buf):
+    """
     imgs = 0
     while imgs is not 100:
         image = mpimg.imread(filename + ext)
@@ -169,6 +172,22 @@ def get_images(img_buf):
         img_buf.put(image)
         print("Image in input buffer")
         imgs += 1
+    """
+    # code to capture video
+
+    vidcap = cv2.VideoCapture('challenge.mp4')
+    success = True
+    count = 0
+    while success:
+        # cv2.imwrite("frame%d.jpg" % count, image)     # save frame as JPEG file
+        while img_buf.full():
+            pass
+        success, image = vidcap.read()
+        if success:
+            img_buf.put(image)
+            print("Image in input buffer - PID: "+ str(os.getpid()))
+            count += 1
+    print("Total frames processed: " + count)
 
 def processImage(img_buf, out_buf):
     imgs = 0
@@ -190,11 +209,11 @@ def processImage(img_buf, out_buf):
         #print("Hough Line Transform Time: " + str(time.time() - start) + " sec")
         weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
 
-        print("Finish Image")
+        print("Finish Image - PID: " + str(os.getpid()))
         while out_buf.full():
             pass
         out_buf.put(weighted_img)
-        print("Image in Output Buffer")
+        print("Image in Output Buffer - PID: " + str(os.getpid()))
         imgs += 1
 
     #return weighted_img
