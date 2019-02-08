@@ -3,6 +3,8 @@
 #################################################################
 # Import Packages
 #################################################################
+import matplotlib
+matplotlib.use('PS')
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import numpy as np
@@ -201,12 +203,20 @@ def weighted_img(img, initial_img, α=0.8, β=1., λ=0.):
 #################################################################
 def write_images(out_buf, filename):
     imgs = 0
+    first_time_empty = True
     while imgs is not 100:
+        #spin wait while buffer is empty
         while out_buf.empty():
-            pass
-
+            if first_time_empty:
+                print("out buf is empty")
+                first_time_empty = False
+            else:
+                pass
+            #pass
+        first_time_empty = True
         processed = out_buf.get()
-        mpimg.imsave(filename + "_processed" + out_ext, processed)
+        filenameList = filename.split(".")
+        mpimg.imsave(filenameList[0] + "_processed" + out_ext, processed)
         print("Written Image " + str(imgs))
         imgs += 1
 
@@ -255,9 +265,11 @@ def processImage(img_buf, out_buf):
 
         print("Finish Image")
         while out_buf.full():
-            pass
+            print("out buf is full")
+            #pass
         out_buf.put(weighted_img)
-        print("Image in Output Buffer " + str(imgs) )
+        print("Image in Output Buffer " + str(imgs))
+        print("length of output buffer: " + str(out_buf.qsize()))
         imgs += 1
 
     #return weighted_img
