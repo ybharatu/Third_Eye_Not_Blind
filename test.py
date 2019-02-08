@@ -97,10 +97,10 @@ def draw_lines(img, lines, imgID):
                 yintercept = y2 - (slope * x2)
                 leftSlope.append(slope)
                 leftIntercept.append(yintercept)
-    if (len(leftSlope) is 0) and len(rightSlope):
-        yintercept = 820
-        leftSlope.append(-0.6)
-        leftIntercept.append(yintercept)
+    #if (len(leftSlope) is 0) and len(rightSlope):
+    #    yintercept = 820
+    #    leftSlope.append(-0.6)
+    #    leftIntercept.append(yintercept)
     try:
                     # We use slicing operators and np.mean() to find the averages of the 30 previous frames
     # This makes the lines more stable, and less likely to shift rapidly
@@ -232,7 +232,7 @@ def processImage(img_buf, out_buf):
         while out_buf.full():
             pass
         #out_buf.put(weighted_img)
-        out_buf.put(canny)
+        out_buf.put(image)
         print("Image in Output Buffer - PID: " + str(os.getpid()))
         imgs += 1
     print("Completed process image for"+ str(imgs)+ "images")
