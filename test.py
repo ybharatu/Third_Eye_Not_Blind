@@ -27,10 +27,13 @@ def color_filter(image):
     upper = np.array([255, 255, 255])
 
     yellower = np.array([10, 0, 90])
-    yelupper = np.array([50, 255, 255])
+    yelupper = np.array([150, 255, 255])
+    #bluelower = np.array([10, 0, 90])
+    #blueupper = np.array([50, 255, 255])
 
     yellowmask = cv2.inRange(hls, yellower, yelupper)
     whitemask = cv2.inRange(hls, lower, upper)
+    #bluemask = cv2.inRange(hls, bluelower, blueupper)
 
     mask = cv2.bitwise_or(yellowmask, whitemask)
     masked = cv2.bitwise_and(image, image, mask=mask)
