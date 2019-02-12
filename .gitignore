@@ -1,6 +1,6 @@
 .idea*
 <<<<<<< HEAD
-test_images/
+processed_images/
 .DS*
 =======
 test_images/*
