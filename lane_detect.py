@@ -40,7 +40,7 @@ def color_filter(image):
     upper = np.array([255, 255, 255])
 
     yellower = np.array([10, 0, 90])
-    yelupper = np.array([50, 255, 255])
+    yelupper = np.array([150, 255, 255])
 
     yellowmask = cv2.inRange(hls, yellower, yelupper)
     whitemask = cv2.inRange(hls, lower, upper)
@@ -201,7 +201,7 @@ def weighted_img(img, initial_img, α=0.8, β=1., λ=0.):
 # Description: Dequeues an image from the buffer and writes it
 # as a file. Can be modified to not write images
 #################################################################
-def write_images(out_buf, filename):
+def write_images(out_buf, foo):
     imgs = 0
     first_time_empty = True
     while imgs is not 100:
@@ -215,27 +215,47 @@ def write_images(out_buf, filename):
             #pass
         first_time_empty = True
         processed = out_buf.get()
-        filenameList = filename.split(".")
-        mpimg.imsave(filenameList[0] + "_processed" + out_ext, processed)
+        mpimg.imsave("processed_images/processed_"+ str(imgs) + out_ext, processed)
         print("Written Image " + str(imgs))
         imgs += 1
+    print("Done writing images")
 
 #################################################################
 # Function: get_images
 # Description: Enqueues images onto the buffer.
 #################################################################
-def get_images(img_buf,filename):
-    imgs = 0
-    print("FILENAME in get_images: " + filename)
-    print("FILENAME: " + str(len(filename)))
-    while imgs is not 100:
-        image = mpimg.imread(filename)
-        while img_buf.full():
-            pass
+def get_images(img_buf, vid, filename):
 
-        img_buf.put(image)
-        print("Image in input buffer " + str(imgs))
-        imgs += 1
+    if vid:
+        # code to capture video
+        vidcap = cv2.VideoCapture(filename)
+        success = True
+        count = 0
+        while success:
+            # cv2.imwrite("frame%d.jpg" % count, image)     # save frame as JPEG file
+            while img_buf.full():
+                pass
+            success, image = vidcap.read()
+            if success:
+                img_buf.put(image)
+                print("Image " + str(count) + " in input buffer")
+                count += 1
+            else:
+                print("No more images")
+        print("Total frames processed: " + str(count))
+    else:
+        #code to process 100 images
+        imgs = 0
+        print("FILENAME in get_images: " + filename)
+        print("FILENAME: " + str(len(filename)))
+        while imgs is not 100:
+            image = mpimg.imread(filename)
+            while img_buf.full():
+                pass
+
+            img_buf.put(image)
+            print("Image in input buffer " + str(imgs))
+            imgs += 1
 
 #################################################################
 # Function: processImage
@@ -249,31 +269,21 @@ def processImage(img_buf, out_buf):
         while img_buf.empty():
             pass
         image = img_buf.get()
-        #start = time.time()
         interest = roi(image)
-        #print("Region of Interest Time: " + str(time.time() - start) + " sec")
-        #start = time.time()
         filterimg = color_filter(interest)
-        #print("Color Filter Time: " + str(time.time() - start) + " sec")
-        #start = time.time()
         canny = cv2.Canny(grayscale(filterimg), 50, 120)
-        #print("Canny Edge + Grayscale Time: " + str(time.time() - start) + " sec")
-        #start = time.time()
         myline = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
-        #print("Hough Line Transform Time: " + str(time.time() - start) + " sec")
         weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
 
-        print("Finish Image")
         while out_buf.full():
             print("out buf is full")
             #pass
         out_buf.put(weighted_img)
-        print("Image in Output Buffer " + str(imgs))
-        print("length of output buffer: " + str(out_buf.qsize()))
+        print("Image " + str(imgs) + " in Output Buffer")
+        #print("length of output buffer: " + str(out_buf.qsize()))
         imgs += 1
+    print("Done processing images")
 
-    #return weighted_img
-    #return myline
 
 #################################################################
 # Function: Main Function
@@ -281,12 +291,11 @@ def processImage(img_buf, out_buf):
 # use processes
 #################################################################
 def main(argv):
-    #global filename
-    lock = Lock()
+    vid = False
     try:
-        opts, args = getopt.getopt(argv, "h:i:", ["image="])
+        opts, args = getopt.getopt(argv, "hvi:", ["help", "video", "image="])
     except getopt.GetoptError:
-        print('lane_detect.py -i <image_filename> ')
+        print('lane_detect.py -i <filename> -v')
         sys.exit(2)
 
     for opt, arg in opts:
@@ -294,27 +303,19 @@ def main(argv):
             print('lane_detect.py -i <image_filename>')
             sys.exit()
         elif opt in ("-i", "--image"):
-            # filename_value = Value(c_wchar_p, arg.strip())
-            # filename = filename_value.value
-            filename = Array(c_wchar_p, ('',''),lock=lock)
-            filename[0] = arg.strip()
-            print("FILENAME: " + str(type(filename)))
-            print("FILENAME: " + str(len(filename)))
+            filename = arg.strip()
+        elif opt in ("-v", "--video"):
+            vid = True
 
-    print("FILENAME: " + filename[0])
+    print("FILENAME: " + filename)
     start = time.time()
 
     img_buf = multiprocessing.Queue()
     out_buf = multiprocessing.Queue()
 
-
-
-    # get_images(img_buf)
-    # processImage(img_buf,out_buf)
-    # write_images(out_buf)
-    img_opening_process = Process(target=get_images, args=(img_buf,filename[0]))
+    img_opening_process = Process(target=get_images, args=(img_buf, vid, filename))
     img_processing_process = Process(target=processImage, args=(img_buf, out_buf))
-    img_writing_process = Process(target=write_images, args=(img_buf,filename[0]))
+    img_writing_process = Process(target=write_images, args=(out_buf, None))
 
 
     img_opening_process.start()
@@ -324,6 +325,8 @@ def main(argv):
     img_opening_process.join()
     img_processing_process.join()
     img_writing_process.join()
+
+
 
     end = time.time()
     print("Total Time: " + str(end - start) + " sec")

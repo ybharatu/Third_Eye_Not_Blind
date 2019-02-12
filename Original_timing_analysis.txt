@@ -1,5 +1,0 @@
-Region of Interest Time: 0.007999897003173828 sec
-Color Filter Time: 0.027997970581054688 sec
-Canny Edge + Grayscale Time: 0.012000083923339844 sec
-Hough Line Transform Time: 0.016000986099243164 sec
-Total Time: 0.1720130443572998 sec
