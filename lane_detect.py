@@ -231,7 +231,8 @@ def get_images(img_buf, vid, filename):
         vidcap = cv2.VideoCapture(filename)
         success = True
         count = 0
-        while success:
+        #while success:
+        while count is not 100:
             # cv2.imwrite("frame%d.jpg" % count, image)     # save frame as JPEG file
             while img_buf.full():
                 pass
@@ -323,8 +324,12 @@ def main(argv):
     img_writing_process.start()
 
     img_opening_process.join()
+    print("finished process 1")
     img_processing_process.join()
+    print("finished process 2")
     img_writing_process.join()
+    print("finished process 2")
+
 
 
 
