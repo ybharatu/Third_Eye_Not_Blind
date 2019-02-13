@@ -12,7 +12,7 @@ import cv2
 import time
 from multiprocessing import Process, Value, Array, Lock
 import multiprocessing
-import asyncio
+import collections
 import os
 import sys
 import getopt
@@ -26,7 +26,7 @@ rightSlope, leftSlope, rightIntercept, leftIntercept = [], [], [], []
 #################################################################
 # Other Global Variables
 #################################################################
-out_ext = ".png"
+out_ext = ".jpg"
 
 
 #################################################################
@@ -114,7 +114,8 @@ def draw_lines(img, lines, thickness=5):
     global rightSlope, leftSlope, rightIntercept, leftIntercept
     rightColor = [0, 255, 0]
     leftColor = [255, 0, 0]
-    middleColor = [255, 255, 0]
+    middleStatColor = [255, 255, 0]
+    middleDynColor = [255, 255, 255]
 
     # this is used to filter out the outlying lines that can affect the average
     # We then use the slope we determined to find the y-intercept of the filtered lines by solving for b in y=mx+b
@@ -151,8 +152,11 @@ def draw_lines(img, lines, thickness=5):
         right_line_x1 = int((0.65 * img.shape[0] - rightavgIntercept) / rightavgSlope)
         right_line_x2 = int((img.shape[0] - rightavgIntercept) / rightavgSlope)
 
-        mid_line_x1 = int((img.shape[1] / 2))
-        mid_line_x2 = int((img.shape[1] / 2))
+        midstat_line_x1 = int((img.shape[1] / 2))
+        midstat_line_x2 = int((img.shape[1] / 2))
+
+        middyn_line_x1 = int(((left_line_x1 + right_line_x1)/ 2))
+        middyn_line_x2 = middyn_line_x1
 
         pts = np.array([[left_line_x1, int(0.65 * img.shape[0])], [left_line_x2, int(img.shape[0])],
                         [right_line_x2, int(img.shape[0])], [right_line_x1, int(0.65 * img.shape[0])]], np.int32)
@@ -162,10 +166,65 @@ def draw_lines(img, lines, thickness=5):
 
         cv2.line(img, (left_line_x1, int(0.65 * img.shape[0])), (left_line_x2, int(img.shape[0])), leftColor, 10)
         cv2.line(img, (right_line_x1, int(0.65 * img.shape[0])), (right_line_x2, int(img.shape[0])), rightColor, 10)
-        cv2.line(img, (mid_line_x1, int(0.65 * img.shape[0])), (mid_line_x2, int(img.shape[0])), middleColor, 10)
+        cv2.line(img, (midstat_line_x1, int(0.65 * img.shape[0])), (midstat_line_x2, int(img.shape[0])), middleStatColor, 10)
+        cv2.line(img, (middyn_line_x1, int(0.65 * img.shape[0])), (middyn_line_x2, int(img.shape[0])), middleDynColor, 10)
+
     except ValueError:
         # I keep getting errors for some reason, so I put this here. Idk if the error still persists.
         pass
+
+#################################################################
+# Function: find_position_in_lane
+# Description: Takes in an image and a list of
+# (start_pt1, end_pt1, start_pt2, end_pt2). Return difference
+# between center of image and center of lane lines
+#################################################################
+def find_position_in_lines(img, lines):
+    global rightSlope, leftSlope, rightIntercept, leftIntercept
+    drift_threshold = 50
+
+    # this is used to filter out the outlying lines that can affect the average
+    # We then use the slope we determined to find the y-intercept of the filtered lines by solving for b in y=mx+b
+    for line in lines:
+        for x1, y1, x2, y2 in line:
+            slope = (y1 - y2) / (x1 - x2)
+            if slope > 0.3:
+                if x1 > 500:
+                    yintercept = y2 - (slope * x2)
+                    rightSlope.append(slope)
+                    rightIntercept.append(yintercept)
+                else:
+                    None
+            elif slope < -0.3:
+                if x1 < 600:
+                    yintercept = y2 - (slope * x2)
+                    leftSlope.append(slope)
+                    leftIntercept.append(yintercept)
+
+    # We use slicing operators and np.mean() to find the averages of the 30 previous frames
+    # This makes the lines more stable, and less likely to shift rapidly
+    leftavgSlope = np.mean(leftSlope[-30:])
+    leftavgIntercept = np.mean(leftIntercept[-30:])
+
+    rightavgSlope = np.mean(rightSlope[-30:])
+    rightavgIntercept = np.mean(rightIntercept[-30:])
+
+    left_line_x1 = int((0.65 * img.shape[0] - leftavgIntercept) / leftavgSlope)
+
+    right_line_x1 = int((0.65 * img.shape[0] - rightavgIntercept) / rightavgSlope)
+
+    center_line_x = int((img.shape[1] / 2))
+
+    mid_lane_x = int(((left_line_x1 + right_line_x1)/ 2))
+
+    off_center_dist = center_line_x - mid_lane_x
+    #print("offset: " + str(off_center_dist))
+    if off_center_dist > drift_threshold:
+        return 1 #drifting right
+    elif off_center_dist < (-1)*drift_threshold:
+        return -1 #drifting left
+    else:
+        return 0
 
 #################################################################
 # Function: hough_lines
@@ -180,9 +239,9 @@ def hough_lines(img, rho, theta, threshold, min_line_len, max_line_gap):
     """
     lines = cv2.HoughLinesP(img, rho, theta, threshold, np.array([]), minLineLength=min_line_len, maxLineGap=max_line_gap)
     line_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
-    draw_lines(line_img, lines)
-    return line_img
-    #return lines
+    #draw_lines(line_img, lines)
+    return find_position_in_lines(img, lines)
+    #return line_img
 
 #################################################################
 # Function: linedetect
@@ -223,10 +282,12 @@ def write_images(out_buf, foo):
             #pass
         first_time_empty = True
         processed = out_buf.get()
-        mpimg.imsave("processed_images/testimg_"+ str(imgs) + out_ext, processed)
+        mpimg.imsave("processed_images/processed_"+ str(imgs) + out_ext, processed)
         print("Written Image " + str(imgs))
         imgs += 1
     print("Done writing images")
+
+
 
 #################################################################
 # Function: get_images
@@ -281,12 +342,14 @@ def processImage(img_buf, out_buf):
         interest = roi(image)
         filterimg = color_filter(interest)
         canny = cv2.Canny(grayscale(filterimg), 50, 120)
-        myline = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
-        weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
+        #myline = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
+        dist_off = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
+        #weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
 
         while out_buf.full():
             pass
-        out_buf.put(weighted_img)
+        #out_buf.put(weighted_img)
+        out_buf.put(dist_off)
         print("Image " + str(imgs) + " in Output Buffer")
         #print("length of output buffer: " + str(out_buf.qsize()))
         imgs += 1
@@ -331,11 +394,8 @@ def main(argv):
     img_writing_process.start()
 
     img_opening_process.join()
-    print("finished process 1")
     img_processing_process.join()
-    print("finished process 2")
     img_writing_process.join()
-    print("finished process 2")
 
 
 
