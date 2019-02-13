@@ -1,2 +1,7 @@
 .idea*
+<<<<<<< HEAD
+processed_images/
+.DS*
+=======
 test_images/*
+>>>>>>> a394954bbdecbea0dd849fd4894e05517d902336
