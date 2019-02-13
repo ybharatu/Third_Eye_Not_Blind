@@ -12,11 +12,13 @@ import cv2
 import time
 from multiprocessing import Process, Value, Array, Lock
 import multiprocessing
+import asyncio
 import os
 import sys
 import getopt
 from ctypes import c_wchar_p
 
+NUM_WORKERS = 3
 #################################################################
 # Lists used for draw_lines
 #################################################################
@@ -26,6 +28,7 @@ rightSlope, leftSlope, rightIntercept, leftIntercept = [], [], [], []
 # Other Global Variables
 #################################################################
 out_ext = ".png"
+
 
 #################################################################
 # Function: color_filter
@@ -112,6 +115,7 @@ def draw_lines(img, lines, thickness=5):
     global rightSlope, leftSlope, rightIntercept, leftIntercept
     rightColor = [0, 255, 0]
     leftColor = [255, 0, 0]
+    middleColor = [255, 255, 0]
 
     # this is used to filter out the outlying lines that can affect the average
     # We then use the slope we determined to find the y-intercept of the filtered lines by solving for b in y=mx+b
@@ -148,13 +152,18 @@ def draw_lines(img, lines, thickness=5):
         right_line_x1 = int((0.65 * img.shape[0] - rightavgIntercept) / rightavgSlope)
         right_line_x2 = int((img.shape[0] - rightavgIntercept) / rightavgSlope)
 
+        mid_line_x1 = int((img.shape[1] / 2))
+        mid_line_x2 = int((img.shape[1] / 2))
+
         pts = np.array([[left_line_x1, int(0.65 * img.shape[0])], [left_line_x2, int(img.shape[0])],
                         [right_line_x2, int(img.shape[0])], [right_line_x1, int(0.65 * img.shape[0])]], np.int32)
         pts = pts.reshape((-1, 1, 2))
         cv2.fillPoly(img, [pts], (0, 0, 255))
 
+
         cv2.line(img, (left_line_x1, int(0.65 * img.shape[0])), (left_line_x2, int(img.shape[0])), leftColor, 10)
         cv2.line(img, (right_line_x1, int(0.65 * img.shape[0])), (right_line_x2, int(img.shape[0])), rightColor, 10)
+        cv2.line(img, (mid_line_x1, int(0.65 * img.shape[0])), (mid_line_x2, int(img.shape[0])), middleColor, 10)
     except ValueError:
         # I keep getting errors for some reason, so I put this here. Idk if the error still persists.
         pass
@@ -215,7 +224,7 @@ def write_images(out_buf, foo):
             #pass
         first_time_empty = True
         processed = out_buf.get()
-        mpimg.imsave("processed_images/processed_"+ str(imgs) + out_ext, processed)
+        mpimg.imsave("processed_images/testimg_"+ str(imgs) + out_ext, processed)
         print("Written Image " + str(imgs))
         imgs += 1
     print("Done writing images")
@@ -230,19 +239,20 @@ def get_images(img_buf, vid, filename):
         # code to capture video
         vidcap = cv2.VideoCapture(filename)
         success = True
-        count = 0
-        while success:
+        imgs = 0
+        #while success:
+        while imgs is not 100:
             # cv2.imwrite("frame%d.jpg" % count, image)     # save frame as JPEG file
             while img_buf.full():
                 pass
             success, image = vidcap.read()
             if success:
                 img_buf.put(image)
-                print("Image " + str(count) + " in input buffer")
-                count += 1
+                print("Image " + str(imgs) + " in input buffer")
+                imgs += 1
             else:
                 print("No more images")
-        print("Total frames processed: " + str(count))
+        print("Total frames processed: " + str(imgs))
     else:
         #code to process 100 images
         imgs = 0
@@ -256,6 +266,120 @@ def get_images(img_buf, vid, filename):
             img_buf.put(image)
             print("Image in input buffer " + str(imgs))
             imgs += 1
+
+#################################################################
+# Function: handle_images
+# Description: Enqueues images onto the input buffer from an
+# input stream. Outputs appropriate values using images fom the
+# output buffer.
+#################################################################
+def handle_images(input_img_1, input_img_2, input_img_3, output_img_1, output_img_2, output_img_3, vid, filename):
+
+    curr_in_buffer = 0
+    curr_out_buffer = 0
+    input_buffers = [input_img_1, input_img_2, input_img_3]
+    output_buffers = [output_img_1, output_img_2, output_img_3]
+    in_imgs = 0
+    out_imgs = 0
+    left_drift_cnt = 0
+    right_drift_cnt = 0
+    #################################################################
+    # Code to handle getting images and placing them into buffer.
+    # Could be either from a video (indicated by vid = True) or an
+    # image (indicated by vid = False). If an image is selected, the
+    # same image is processed 100 times in order to provide
+    # meaningful timing information
+    #################################################################
+    while(in_imgs == 100 and out_imgs == 100):
+        #################################################################
+        # Code to handle getting images from a source (either a video
+        # or an image
+        #################################################################
+        if vid:
+            # code to capture video
+            vidcap = cv2.VideoCapture(filename)
+            success = True
+            in_imgs = 0
+            # cv2.imwrite("frame%d.jpg" % count, image)     # save frame as JPEG file
+            #################################################################
+            # Check if current buffer is full and wait till it is not
+            #################################################################
+            while input_buffers[curr_in_buffer].full():
+                pass
+
+            #################################################################
+            # Reads a frame of video
+            # Note: Filter frames of video code can go here (EX: Reading
+            # every other frame)
+            #################################################################
+            success, image = vidcap.read()
+
+            #################################################################
+            # Puts image into buffer and updates current buffer
+            #################################################################
+            if success:
+                input_buffers[curr_in_buffer].put(image)
+                print("Image " + str(in_imgs) + " in input buffer")
+                in_imgs += 1
+                curr_in_buffer = (curr_in_buffer + 1) % NUM_WORKERS
+            else:
+                print("No more images")
+            print("Total frames processed: " + str(imgs))
+        #################################################################
+        # Code to handle single image processing (100 times for timing)
+        #################################################################
+        else:
+            # code to process 100 images
+            imgs = 0
+            print("FILENAME in get_images: " + filename)
+            print("FILENAME: " + str(len(filename)))
+            image = mpimg.imread(filename)
+            #################################################################
+            # Checks if buffer is full and waits till its not full
+            #################################################################
+            while input_buffers[curr_in_buffer].full():
+                pass
+
+            #################################################################
+            # Puts image into buffer and updates current buffer
+            #################################################################
+            input_buffers[curr_in_buffer].put(image)
+            print("Image in input buffer " + str(imgs))
+            imgs += 1
+            curr_in_buffer = (curr_in_buffer + 1) % NUM_WORKERS
+        #################################################################
+        # Consuming elements in the output buffer and returning drift
+        # values
+        #################################################################
+        if(output_buffers[curr_out_buffer].empty()):
+            continue
+
+        #################################################################
+        # Incraments Appropriate drift counter Key: left drift = -1,
+        # right drift = 1, no drift = 0
+        #################################################################
+        if(output_buffers[curr_out_buffer].get() == -1):
+            right_drift_cnt = 0
+            left_drift_cnt += 1
+        elif(output_buffers[curr_out_buffer].get() == 1):
+            right_drift_cnt += 1
+            left_drift_cnt = 0
+        elif (output_buffers[curr_out_buffer].get() == 0):
+            right_drift_cnt = 0
+            left_drift_cnt = 0
+        else:
+            print("Unexpected Value Obtained in Output buffer")
+
+        #################################################################
+        # Note: Need to tell micro that the system is drifting
+        #################################################################
+        if(left_drift_cnt >= 3):
+            print("Drifting Left!!")
+        elif(right_drift_cnt >= 3):
+            print("Drifting Right!!")
+        else:
+            print("Not Drifting")
+
 
 #################################################################
 # Function: processImage
@@ -276,8 +400,7 @@ def processImage(img_buf, out_buf):
         weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
 
         while out_buf.full():
-            print("out buf is full")
-            #pass
+            pass
         out_buf.put(weighted_img)
         print("Image " + str(imgs) + " in Output Buffer")
         #print("length of output buffer: " + str(out_buf.qsize()))
@@ -310,21 +433,38 @@ def main(argv):
     print("FILENAME: " + filename)
     start = time.time()
 
-    img_buf = multiprocessing.Queue()
-    out_buf = multiprocessing.Queue()
+    input_img_1 = multiprocessing.Queue()
+    input_img_2 = multiprocessing.Queue()
+    input_img_3 = multiprocessing.Queue()
 
-    img_opening_process = Process(target=get_images, args=(img_buf, vid, filename))
-    img_processing_process = Process(target=processImage, args=(img_buf, out_buf))
-    img_writing_process = Process(target=write_images, args=(out_buf, None))
+    output_img_1 = multiprocessing.Queue()
+    output_img_2 = multiprocessing.Queue()
+    output_img_3 = multiprocessing.Queue()
 
+    # img_buf = multiprocessing.Queue()
+    # out_buf = multiprocessing.Queue()
 
-    img_opening_process.start()
-    img_processing_process.start()
-    img_writing_process.start()
+    # img_opening_process = Process(target=get_images, args=(img_buf, vid, filename))
+    # img_processing_process = Process(target=processImage, args=(img_buf, out_buf))
+    # img_writing_process = Process(target=write_images, args=(out_buf, None))
 
-    img_opening_process.join()
-    img_processing_process.join()
-    img_writing_process.join()
+    img_handling_process = Process(target=handle_images, args=(input_img_1, input_img_2, input_img_3,\
+                                                            output_img_1, output_img_2, output_img_3, vid, filename))
+    img_processing_1_process = Process(target=processImage, args=(input_img_1, output_img_1))
+    img_processing_2_process = Process(target=processImage, args=(input_img_2, output_img_2))
+    img_processing_3_process = Process(target=processImage, args=(input_img_3, output_img_3))
+
+    # img_opening_process.start()
+    # img_processing_process.start()
+    # img_writing_process.start()
+
+    # img_opening_process.join()
+    # print("finished process 1")
+    # img_processing_process.join()
+    # print("finished process 2")
+    # img_writing_process.join()
+    # print("finished process 2")
+
 
 
 
