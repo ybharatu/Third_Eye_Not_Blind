@@ -18,6 +18,7 @@ import sys
 import getopt
 from ctypes import c_wchar_p
 
+NUM_WORKERS = 3
 #################################################################
 # Lists used for draw_lines
 #################################################################
@@ -267,6 +268,120 @@ def get_images(img_buf, vid, filename):
             imgs += 1
 
 #################################################################
+# Function: handle_images
+# Description: Enqueues images onto the input buffer from an
+# input stream. Outputs appropriate values using images fom the
+# output buffer.
+#################################################################
+def handle_images(input_img_1, input_img_2, input_img_3, output_img_1, output_img_2, output_img_3, vid, filename):
+
+    curr_in_buffer = 0
+    curr_out_buffer = 0
+    input_buffers = [input_img_1, input_img_2, input_img_3]
+    output_buffers = [output_img_1, output_img_2, output_img_3]
+    in_imgs = 0
+    out_imgs = 0
+    left_drift_cnt = 0
+    right_drift_cnt = 0
+    #################################################################
+    # Code to handle getting images and placing them into buffer.
+    # Could be either from a video (indicated by vid = True) or an
+    # image (indicated by vid = False). If an image is selected, the
+    # same image is processed 100 times in order to provide
+    # meaningful timing information
+    #################################################################
+    while(in_imgs == 100 and out_imgs == 100):
+        #################################################################
+        # Code to handle getting images from a source (either a video
+        # or an image
+        #################################################################
+        if vid:
+            # code to capture video
+            vidcap = cv2.VideoCapture(filename)
+            success = True
+            in_imgs = 0
+            # cv2.imwrite("frame%d.jpg" % count, image)     # save frame as JPEG file
+            #################################################################
+            # Check if current buffer is full and wait till it is not
+            #################################################################
+            while input_buffers[curr_in_buffer].full():
+                pass
+
+            #################################################################
+            # Reads a frame of video
+            # Note: Filter frames of video code can go here (EX: Reading
+            # every other frame)
+            #################################################################
+            success, image = vidcap.read()
+
+            #################################################################
+            # Puts image into buffer and updates current buffer
+            #################################################################
+            if success:
+                input_buffers[curr_in_buffer].put(image)
+                print("Image " + str(in_imgs) + " in input buffer")
+                in_imgs += 1
+                curr_in_buffer = (curr_in_buffer + 1) % NUM_WORKERS
+            else:
+                print("No more images")
+            print("Total frames processed: " + str(imgs))
+        #################################################################
+        # Code to handle single image processing (100 times for timing)
+        #################################################################
+        else:
+            # code to process 100 images
+            imgs = 0
+            print("FILENAME in get_images: " + filename)
+            print("FILENAME: " + str(len(filename)))
+            image = mpimg.imread(filename)
+            #################################################################
+            # Checks if buffer is full and waits till its not full
+            #################################################################
+            while input_buffers[curr_in_buffer].full():
+                pass
+
+            #################################################################
+            # Puts image into buffer and updates current buffer
+            #################################################################
+            input_buffers[curr_in_buffer].put(image)
+            print("Image in input buffer " + str(imgs))
+            imgs += 1
+            curr_in_buffer = (curr_in_buffer + 1) % NUM_WORKERS
+        #################################################################
+        # Consuming elements in the output buffer and returning drift
+        # values
+        #################################################################
+        if(output_buffers[curr_out_buffer].empty()):
+            continue
+
+        #################################################################
+        # Incraments Appropriate drift counter Key: left drift = -1,
+        # right drift = 1, no drift = 0
+        #################################################################
+        if(output_buffers[curr_out_buffer].get() == -1):
+            right_drift_cnt = 0
+            left_drift_cnt += 1
+        elif(output_buffers[curr_out_buffer].get() == 1):
+            right_drift_cnt += 1
+            left_drift_cnt = 0
+        elif (output_buffers[curr_out_buffer].get() == 0):
+            right_drift_cnt = 0
+            left_drift_cnt = 0
+        else:
+            print("Unexpected Value Obtained in Output buffer")
+
+        #################################################################
+        # Note: Need to tell micro that the system is drifting
+        #################################################################
+        if(left_drift_cnt >= 3):
+            print("Drifting Left!!")
+        elif(right_drift_cnt >= 3):
+            print("Drifting Right!!")
+        else:
+            print("Not Drifting")
+
+
+#################################################################
 # Function: processImage
 # Description: Dequeues an image from the input buffer.
 # Processes the image and then Enqueues it onto the output
@@ -318,24 +433,37 @@ def main(argv):
     print("FILENAME: " + filename)
     start = time.time()
 
-    img_buf = multiprocessing.Queue()
-    out_buf = multiprocessing.Queue()
+    input_img_1 = multiprocessing.Queue()
+    input_img_2 = multiprocessing.Queue()
+    input_img_3 = multiprocessing.Queue()
 
-    img_opening_process = Process(target=get_images, args=(img_buf, vid, filename))
-    img_processing_process = Process(target=processImage, args=(img_buf, out_buf))
-    img_writing_process = Process(target=write_images, args=(out_buf, None))
+    output_img_1 = multiprocessing.Queue()
+    output_img_2 = multiprocessing.Queue()
+    output_img_3 = multiprocessing.Queue()
 
+    # img_buf = multiprocessing.Queue()
+    # out_buf = multiprocessing.Queue()
 
-    img_opening_process.start()
-    img_processing_process.start()
-    img_writing_process.start()
+    # img_opening_process = Process(target=get_images, args=(img_buf, vid, filename))
+    # img_processing_process = Process(target=processImage, args=(img_buf, out_buf))
+    # img_writing_process = Process(target=write_images, args=(out_buf, None))
 
-    img_opening_process.join()
-    print("finished process 1")
-    img_processing_process.join()
-    print("finished process 2")
-    img_writing_process.join()
-    print("finished process 2")
+    img_handling_process = Process(target=handle_images, args=(input_img_1, input_img_2, input_img_3,\
+                                                            output_img_1, output_img_2, output_img_3, vid, filename))
+    img_processing_1_process = Process(target=processImage, args=(input_img_1, output_img_1))
+    img_processing_2_process = Process(target=processImage, args=(input_img_2, output_img_2))
+    img_processing_3_process = Process(target=processImage, args=(input_img_3, output_img_3))
+
+    # img_opening_process.start()
+    # img_processing_process.start()
+    # img_writing_process.start()
+
+    # img_opening_process.join()
+    # print("finished process 1")
+    # img_processing_process.join()
+    # print("finished process 2")
+    # img_writing_process.join()
+    # print("finished process 2")
 
 
 
