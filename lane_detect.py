@@ -12,6 +12,7 @@ import cv2
 import time
 from multiprocessing import Process, Value, Array, Lock
 import multiprocessing
+import asyncio
 import os
 import sys
 import getopt
@@ -26,6 +27,7 @@ rightSlope, leftSlope, rightIntercept, leftIntercept = [], [], [], []
 # Other Global Variables
 #################################################################
 out_ext = ".png"
+
 
 #################################################################
 # Function: color_filter
@@ -112,6 +114,7 @@ def draw_lines(img, lines, thickness=5):
     global rightSlope, leftSlope, rightIntercept, leftIntercept
     rightColor = [0, 255, 0]
     leftColor = [255, 0, 0]
+    middleColor = [255, 255, 0]
 
     # this is used to filter out the outlying lines that can affect the average
     # We then use the slope we determined to find the y-intercept of the filtered lines by solving for b in y=mx+b
@@ -148,13 +151,18 @@ def draw_lines(img, lines, thickness=5):
         right_line_x1 = int((0.65 * img.shape[0] - rightavgIntercept) / rightavgSlope)
         right_line_x2 = int((img.shape[0] - rightavgIntercept) / rightavgSlope)
 
+        mid_line_x1 = int((img.shape[1] / 2))
+        mid_line_x2 = int((img.shape[1] / 2))
+
         pts = np.array([[left_line_x1, int(0.65 * img.shape[0])], [left_line_x2, int(img.shape[0])],
                         [right_line_x2, int(img.shape[0])], [right_line_x1, int(0.65 * img.shape[0])]], np.int32)
         pts = pts.reshape((-1, 1, 2))
         cv2.fillPoly(img, [pts], (0, 0, 255))
 
+
         cv2.line(img, (left_line_x1, int(0.65 * img.shape[0])), (left_line_x2, int(img.shape[0])), leftColor, 10)
         cv2.line(img, (right_line_x1, int(0.65 * img.shape[0])), (right_line_x2, int(img.shape[0])), rightColor, 10)
+        cv2.line(img, (mid_line_x1, int(0.65 * img.shape[0])), (mid_line_x2, int(img.shape[0])), middleColor, 10)
     except ValueError:
         # I keep getting errors for some reason, so I put this here. Idk if the error still persists.
         pass
@@ -215,7 +223,7 @@ def write_images(out_buf, foo):
             #pass
         first_time_empty = True
         processed = out_buf.get()
-        mpimg.imsave("processed_images/processed_"+ str(imgs) + out_ext, processed)
+        mpimg.imsave("processed_images/testimg_"+ str(imgs) + out_ext, processed)
         print("Written Image " + str(imgs))
         imgs += 1
     print("Done writing images")
@@ -230,20 +238,20 @@ def get_images(img_buf, vid, filename):
         # code to capture video
         vidcap = cv2.VideoCapture(filename)
         success = True
-        count = 0
+        imgs = 0
         #while success:
-        while count is not 100:
+        while imgs is not 100:
             # cv2.imwrite("frame%d.jpg" % count, image)     # save frame as JPEG file
             while img_buf.full():
                 pass
             success, image = vidcap.read()
             if success:
                 img_buf.put(image)
-                print("Image " + str(count) + " in input buffer")
-                count += 1
+                print("Image " + str(imgs) + " in input buffer")
+                imgs += 1
             else:
                 print("No more images")
-        print("Total frames processed: " + str(count))
+        print("Total frames processed: " + str(imgs))
     else:
         #code to process 100 images
         imgs = 0
@@ -277,8 +285,7 @@ def processImage(img_buf, out_buf):
         weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
 
         while out_buf.full():
-            print("out buf is full")
-            #pass
+            pass
         out_buf.put(weighted_img)
         print("Image " + str(imgs) + " in Output Buffer")
         #print("length of output buffer: " + str(out_buf.qsize()))
