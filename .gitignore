@@ -1,1 +1,8 @@
 .idea*
+processed_images/
+.DS*
+=======
+test_images/*
+
+*.s#1
+
