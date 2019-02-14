@@ -4,5 +4,8 @@ processed_images/
 =======
 test_images/*
 
-*.s#1
 
+*.s#?
+*.b#?
+*.l#?
+*.lck
