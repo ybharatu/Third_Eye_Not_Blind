@@ -19,6 +19,7 @@ import getopt
 from ctypes import c_wchar_p
 
 NUM_WORKERS = 3
+NUM_FRAMES = 150
 #################################################################
 # Lists used for draw_lines
 #################################################################
@@ -274,7 +275,7 @@ def weighted_img(img, initial_img, α=0.8, β=1., λ=0.):
 def write_images(out_buf, foo):
     imgs = 0
     first_time_empty = True
-    while imgs is not 100:
+    while imgs is not NUM_FRAMES:
         #spin wait while buffer is empty
         while out_buf.empty():
             if first_time_empty:
@@ -302,14 +303,14 @@ def get_images(img_buf, vid, filename):
         success = True
         imgs = 0
         #while success:
-        while imgs is not 100:
+        while imgs is not NUM_FRAMES:
             # cv2.imwrite("frame%d.jpg" % count, image)     # save frame as JPEG file
             while img_buf.full():
                 pass
             success, image = vidcap.read()
             if success:
                 img_buf.put(image)
-                print("Image " + str(imgs) + " in input buffer")
+                #print("Image " + str(imgs) + " in input buffer, PID: " + str(os.getPID()))
                 imgs += 1
             else:
                 print("No more images")
@@ -319,7 +320,7 @@ def get_images(img_buf, vid, filename):
         imgs = 0
         print("FILENAME in get_images: " + filename)
         print("FILENAME: " + str(len(filename)))
-        while imgs is not 100:
+        while imgs is not NUM_FRAMES:
             image = mpimg.imread(filename)
             while img_buf.full():
                 pass
@@ -348,10 +349,10 @@ def handle_images(input_img_1, input_img_2, input_img_3, output_img_1, output_im
     # Code to handle getting images and placing them into buffer.
     # Could be either from a video (indicated by vid = True) or an
     # image (indicated by vid = False). If an image is selected, the
-    # same image is processed 100 times in order to provide
+    # same image is processed NUM_FRAMES times in order to provide
     # meaningful timing information
     #################################################################
-    while(in_imgs != 100 and out_imgs != 100):
+    while(in_imgs != NUM_FRAMES and out_imgs != NUM_FRAMES):
         #################################################################
         # Code to handle getting images from a source (either a video
         # or an image
@@ -360,7 +361,6 @@ def handle_images(input_img_1, input_img_2, input_img_3, output_img_1, output_im
             # code to capture video
             vidcap = cv2.VideoCapture(filename)
             success = True
-            in_imgs = 0
             # cv2.imwrite("frame%d.jpg" % count, image)     # save frame as JPEG file
             #################################################################
             # Check if current buffer is full and wait till it is not
@@ -380,17 +380,17 @@ def handle_images(input_img_1, input_img_2, input_img_3, output_img_1, output_im
             #################################################################
             if success:
                 input_buffers[curr_in_buffer].put(image)
-                print("Image " + str(in_imgs) + " in input buffer")
+                #print("Image " + str(in_imgs) + " in input buffer")
                 in_imgs += 1
                 curr_in_buffer = (curr_in_buffer + 1) % NUM_WORKERS
             else:
                 print("No more images")
             #print("Total frames processed: " + str(in_imgs))
         #################################################################
-        # Code to handle single image processing (100 times for timing)
+        # Code to handle single image processing (NUM_FRAMES times for timing)
         #################################################################
         else:
-            # code to process 100 images
+            # code to process NUM_FRAMES images
             imgs = 0
             print("FILENAME in get_images: " + filename)
             print("FILENAME: " + str(len(filename)))
@@ -413,19 +413,25 @@ def handle_images(input_img_1, input_img_2, input_img_3, output_img_1, output_im
         # values
         #################################################################
         if(output_buffers[curr_out_buffer].empty()):
+            #print("Output Buffer " + str(curr_out_buffer) + " is empty")
             continue
+        # else:
+        #     print("Output Buffer " + str(curr_out_buffer) + " is NOT empty")
+
 
         #################################################################
         # Incraments Appropriate drift counter Key: left drift = -1,
         # right drift = 1, no drift = 0
         #################################################################
-        if(output_buffers[curr_out_buffer].get() == -1):
+        drift_value = output_buffers[curr_out_buffer].get()
+        #print("Drift Value from output buffer = " + str(drift_value) + ", PID: " + str(os.getpid()))
+        if(drift_value == -1):
             right_drift_cnt = 0
             left_drift_cnt += 1
-        elif(output_buffers[curr_out_buffer].get() == 1):
+        elif(drift_value == 1):
             right_drift_cnt += 1
             left_drift_cnt = 0
-        elif (output_buffers[curr_out_buffer].get() == 0):
+        elif (drift_value == 0):
             right_drift_cnt = 0
             left_drift_cnt = 0
         else:
@@ -441,6 +447,8 @@ def handle_images(input_img_1, input_img_2, input_img_3, output_img_1, output_im
         else:
             print("Not Drifting")
 
+    #print("Process " + str(os.getpid()) + " has completed")
+
 
 #################################################################
 # Function: processImage
@@ -450,7 +458,7 @@ def handle_images(input_img_1, input_img_2, input_img_3, output_img_1, output_im
 #################################################################
 def processImage(img_buf, out_buf):
     imgs = 0
-    while imgs is not 100:
+    while imgs is not int(NUM_FRAMES / 3):
         while img_buf.empty():
             pass
         image = img_buf.get()
@@ -465,10 +473,10 @@ def processImage(img_buf, out_buf):
             pass
         #out_buf.put(weighted_img)
         out_buf.put(dist_off)
-        print("Image " + str(imgs) + " in Output Buffer")
-        #print("length of output buffer: " + str(out_buf.qsize()))
+        #print("Image " + str(imgs) + " in Output Buffer, PID: " + str(os.getpid()))
         imgs += 1
-    print("Done processing images")
+        #print("NUM_FRAMES / 3 = " + str(int(NUM_FRAMES / 3)) + " and imgs = " + str(imgs))
+    #print("Process " + str(os.getpid()) + " has completed")
 
 
 #################################################################
@@ -523,13 +531,13 @@ def main(argv):
     img_processing_3_process.start()
 
     img_handling_process.join()
-    print("finished process 1")
+    print("Finished Process 1")
     img_processing_1_process.join()
-    print("finished process 2")
+    print("Finished Process 2")
     img_processing_2_process.join()
-    print("finished process 3")
+    print("Finished Process 3")
     img_processing_3_process.join()
-    print("finished process 4")
+    print("Finished Process 4")
     # img_opening_process.start()
     # img_processing_process.start()
     # img_writing_process.start()
