@@ -6,7 +6,7 @@
 <setting alwaysvectorfont="no"/>
 <setting verticaltext="up"/>
 </settings>
-<grid distance="0.1" unitdist="inch" unit="inch" style="lines" multiple="1" display="yes" altdistance="0.01" altunitdist="inch" altunit="inch"/>
+<grid distance="0.1" unitdist="inch" unit="inch" style="lines" multiple="1" display="no" altdistance="0.01" altunitdist="inch" altunit="inch"/>
 <layers>
 <layer number="1" name="Top" color="4" fill="1" visible="yes" active="yes"/>
 <layer number="2" name="Route2" color="16" fill="1" visible="no" active="yes"/>
@@ -1290,29 +1290,6 @@ MELF 0.25 W</description>
 <wire x1="0.15875" y1="0" x2="-0.15875" y2="0.3175" width="0.127" layer="51"/>
 <wire x1="0.15875" y1="0" x2="-0.15875" y2="-0.3175" width="0.127" layer="51"/>
 </package>
-<package name="SUPER_BRIGHT_SMD_LED_3014" urn="urn:adsk.eagle:footprint:39317/1">
-<description>3014 Package for LEDs</description>
-<wire x1="-1.45" y1="0.7" x2="1.45" y2="0.7" width="0.127" layer="51"/>
-<wire x1="1.45" y1="0.7" x2="1.45" y2="-0.7" width="0.127" layer="51"/>
-<wire x1="1.45" y1="-0.7" x2="-1.45" y2="-0.7" width="0.127" layer="51"/>
-<wire x1="-1.45" y1="-0.7" x2="-1.45" y2="0.7" width="0.127" layer="51"/>
-<wire x1="-1.5" y1="0.7" x2="1.5" y2="0.7" width="0.2032" layer="21"/>
-<wire x1="1.5" y1="0.7" x2="1.5" y2="0.5" width="0.2032" layer="21"/>
-<wire x1="1.5" y1="-0.5" x2="1.5" y2="-0.7" width="0.2032" layer="21"/>
-<wire x1="1.5" y1="-0.7" x2="-1.5" y2="-0.7" width="0.2032" layer="21"/>
-<wire x1="-1.5" y1="0.7" x2="-1.5" y2="0.5" width="0.2032" layer="21"/>
-<wire x1="-1.5" y1="-0.7" x2="-1.5" y2="-0.5" width="0.2032" layer="21"/>
-<wire x1="2.019" y1="0.6825" x2="2.019" y2="-0.6825" width="0.2032" layer="21"/>
-<smd name="A" x="-1.2" y="0" dx="0.8" dy="1" layer="1" rot="R90" cream="no"/>
-<smd name="C" x="0.827" y="0" dx="0.8" dy="1.9" layer="1" rot="R90" cream="no"/>
-<rectangle x1="-0.075" y1="-0.35" x2="1.675" y2="0.35" layer="51"/>
-<rectangle x1="-1.625" y1="-0.35" x2="-0.775" y2="0.35" layer="51"/>
-<rectangle x1="-1.5" y1="-0.3" x2="-0.9" y2="0.3" layer="31"/>
-<rectangle x1="0" y1="-0.3" x2="0.6" y2="0.3" layer="31"/>
-<rectangle x1="1" y1="-0.3" x2="1.6" y2="0.3" layer="31"/>
-<text x="-1.5" y="0.9" size="0.6096" layer="25" font="vector" ratio="20">&gt;Name</text>
-<text x="-1.5" y="-1.4" size="0.6096" layer="27" font="vector" ratio="20">&gt;Value</text>
-</package>
 <package name="MA03-1" urn="urn:adsk.eagle:footprint:8281/1">
 <description>&lt;b&gt;PIN HEADER&lt;/b&gt;</description>
 <wire x1="-3.175" y1="1.27" x2="-1.905" y2="1.27" width="0.1524" layer="21"/>
@@ -1418,12 +1395,6 @@ Example device(s):
 LED - BLUE</description>
 <packageinstances>
 <packageinstance name="LED-0603"/>
-</packageinstances>
-</package3d>
-<package3d name="SUPER_BRIGHT_SMD_LED_3014" urn="urn:adsk.eagle:package:39362/1" type="box">
-<description>3014 Package for LEDs</description>
-<packageinstances>
-<packageinstance name="SUPER_BRIGHT_SMD_LED_3014"/>
 </packageinstances>
 </package3d>
 <package3d name="MA03-1" urn="urn:adsk.eagle:package:8339/1" type="box">
@@ -2127,21 +2098,6 @@ Used in manufacturing several products at SparkFun.
 <technology name="">
 <attribute name="PROD_ID" value="DIO-09004"/>
 <attribute name="VALUE" value="WHITE" constant="no"/>
-</technology>
-</technologies>
-</device>
-<device name="3014" package="SUPER_BRIGHT_SMD_LED_3014">
-<connects>
-<connect gate="G$1" pin="A" pad="A"/>
-<connect gate="G$1" pin="C" pad="C"/>
-</connects>
-<package3dinstances>
-<package3dinstance package3d_urn="urn:adsk.eagle:package:39362/1"/>
-</package3dinstances>
-<technologies>
-<technology name="">
-<attribute name="PROD_ID" value="DIO-13728" constant="no"/>
-<attribute name="VALUE" value="White, 60mA" constant="no"/>
 </technology>
 </technologies>
 </device>
