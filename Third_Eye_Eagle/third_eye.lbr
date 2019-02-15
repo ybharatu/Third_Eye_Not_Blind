@@ -1149,6 +1149,56 @@ MELF 0.25 W</description>
 <wire x1="-26.4922" y1="12.2936" x2="-26.4922" y2="-12.2936" width="0.1524" layer="51"/>
 <text x="-3.2766" y="-0.635" size="1.27" layer="25" ratio="6" rot="SR0">&gt;Name</text>
 </package>
+<package name="MOLEX_0473460001">
+<wire x1="-4.2" y1="-4.44" x2="4.2" y2="-4.44" width="0.127" layer="21"/>
+<wire x1="-3.9" y1="-5.14" x2="3.9" y2="-5.14" width="0.127" layer="21"/>
+<wire x1="-4.5" y1="-5.5" x2="4.5" y2="-5.5" width="0.127" layer="39"/>
+<wire x1="4.5" y1="-5.5" x2="4.5" y2="1" width="0.127" layer="39"/>
+<wire x1="4.5" y1="1" x2="-4.5" y2="1" width="0.127" layer="39"/>
+<wire x1="-4.5" y1="1" x2="-4.5" y2="-5.5" width="0.127" layer="39"/>
+<text x="-4.50605" y="1.25168125" size="1.271709375" layer="25">&gt;NAME</text>
+<text x="-4.5023" y="-7.00358125" size="1.27065" layer="27">&gt;VALUE</text>
+<circle x="-4" y="0.5" radius="0.25" width="0" layer="21"/>
+<smd name="3" x="0" y="0" dx="0.45" dy="1.38" layer="1"/>
+<smd name="2" x="-0.65" y="0" dx="0.45" dy="1.38" layer="1"/>
+<smd name="4" x="0.65" y="0" dx="0.45" dy="1.38" layer="1"/>
+<smd name="1" x="-1.3" y="0" dx="0.45" dy="1.38" layer="1"/>
+<smd name="5" x="1.3" y="0" dx="0.45" dy="1.38" layer="1"/>
+<smd name="P1" x="-2.4625" y="-0.36" dx="1.475" dy="2.1" layer="1"/>
+<smd name="P2" x="2.4625" y="-0.36" dx="1.475" dy="2.1" layer="1"/>
+<smd name="P3" x="-2.9125" y="-2.99" dx="2.375" dy="1.9" layer="1"/>
+<smd name="P6" x="2.9125" y="-2.99" dx="2.375" dy="1.9" layer="1"/>
+<smd name="P4" x="-0.8375" y="-2.99" dx="1.175" dy="1.9" layer="1"/>
+<smd name="P5" x="0.8375" y="-2.99" dx="1.175" dy="1.9" layer="1"/>
+</package>
+<package name="SOT95P280X145-5N">
+<wire x1="-0.88" y1="1.53" x2="-0.88" y2="-1.53" width="0.127" layer="51"/>
+<wire x1="-0.88" y1="-1.53" x2="0.88" y2="-1.53" width="0.127" layer="51"/>
+<wire x1="0.88" y1="-1.53" x2="0.88" y2="1.53" width="0.127" layer="51"/>
+<wire x1="0.88" y1="1.53" x2="-0.88" y2="1.53" width="0.127" layer="51"/>
+<wire x1="-0.88" y1="1.53" x2="0.88" y2="1.53" width="0.127" layer="21"/>
+<wire x1="-0.88" y1="-1.53" x2="0.88" y2="-1.53" width="0.127" layer="21"/>
+<text x="-2.0087" y="2.05891875" size="1.02041875" layer="25">&gt;NAME</text>
+<text x="-2.05626875" y="-2.908859375" size="1.019109375" layer="27">&gt;VALUE</text>
+<wire x1="-2.11" y1="1.5" x2="-1.13" y2="1.5" width="0.05" layer="39"/>
+<wire x1="-1.13" y1="1.5" x2="-1.13" y2="1.78" width="0.05" layer="39"/>
+<wire x1="-1.13" y1="1.78" x2="1.13" y2="1.78" width="0.05" layer="39"/>
+<wire x1="1.13" y1="1.78" x2="1.13" y2="1.5" width="0.05" layer="39"/>
+<wire x1="1.13" y1="1.5" x2="2.11" y2="1.5" width="0.05" layer="39"/>
+<wire x1="2.11" y1="1.5" x2="2.11" y2="-1.5" width="0.05" layer="39"/>
+<wire x1="2.11" y1="-1.5" x2="1.13" y2="-1.5" width="0.05" layer="39"/>
+<wire x1="1.13" y1="-1.5" x2="1.13" y2="-1.78" width="0.05" layer="39"/>
+<wire x1="1.13" y1="-1.78" x2="-1.13" y2="-1.78" width="0.05" layer="39"/>
+<wire x1="-1.13" y1="-1.78" x2="-1.13" y2="-1.5" width="0.05" layer="39"/>
+<wire x1="-1.13" y1="-1.5" x2="-2.11" y2="-1.5" width="0.05" layer="39"/>
+<wire x1="-2.11" y1="-1.5" x2="-2.11" y2="1.5" width="0.05" layer="39"/>
+<circle x="-2.45" y="1.05" radius="0.1581125" width="0.2" layer="21"/>
+<smd name="1" x="-1.255" y="0.95" dx="1.21" dy="0.59" layer="1" roundness="50"/>
+<smd name="2" x="-1.255" y="0" dx="1.21" dy="0.59" layer="1" roundness="50"/>
+<smd name="3" x="-1.255" y="-0.95" dx="1.21" dy="0.59" layer="1" roundness="50"/>
+<smd name="4" x="1.255" y="-0.95" dx="1.21" dy="0.59" layer="1" roundness="50" rot="R180"/>
+<smd name="5" x="1.255" y="0.95" dx="1.21" dy="0.59" layer="1" roundness="50" rot="R180"/>
+</package>
 </packages>
 <packages3d>
 <package3d name="MA10-1" urn="urn:adsk.eagle:package:8346/1" type="box">
@@ -1329,20 +1379,20 @@ Source: DCJ0303.pdf</description>
 <wire x1="1.27" y1="7.62" x2="2.54" y2="7.62" width="0.6096" layer="94"/>
 <text x="-3.81" y="-12.7" size="1.778" layer="96">&gt;VALUE</text>
 <text x="-3.81" y="10.922" size="1.778" layer="95">&gt;NAME</text>
-<pin name="1" x="7.62" y="-7.62" visible="pad" length="middle" direction="pas" swaplevel="1" rot="R180"/>
-<pin name="3" x="7.62" y="-5.08" visible="pad" length="middle" direction="pas" swaplevel="1" rot="R180"/>
-<pin name="5" x="7.62" y="-2.54" visible="pad" length="middle" direction="pas" swaplevel="1" rot="R180"/>
-<pin name="2" x="-7.62" y="-7.62" visible="pad" length="middle" direction="pas" swaplevel="1"/>
-<pin name="4" x="-7.62" y="-5.08" visible="pad" length="middle" direction="pas" swaplevel="1"/>
-<pin name="6" x="-7.62" y="-2.54" visible="pad" length="middle" direction="pas" swaplevel="1"/>
-<pin name="7" x="7.62" y="0" visible="pad" length="middle" direction="pas" swaplevel="1" rot="R180"/>
-<pin name="9" x="7.62" y="2.54" visible="pad" length="middle" direction="pas" swaplevel="1" rot="R180"/>
-<pin name="11" x="7.62" y="5.08" visible="pad" length="middle" direction="pas" swaplevel="1" rot="R180"/>
-<pin name="8" x="-7.62" y="0" visible="pad" length="middle" direction="pas" swaplevel="1"/>
-<pin name="10" x="-7.62" y="2.54" visible="pad" length="middle" direction="pas" swaplevel="1"/>
-<pin name="12" x="-7.62" y="5.08" visible="pad" length="middle" direction="pas" swaplevel="1"/>
-<pin name="14" x="-7.62" y="7.62" visible="pad" length="middle" direction="pas" swaplevel="1"/>
-<pin name="13" x="7.62" y="7.62" visible="pad" length="middle" direction="pas" swaplevel="1" rot="R180"/>
+<pin name="1" x="7.62" y="-7.62" visible="pin" length="middle" direction="pas" swaplevel="1" rot="R180"/>
+<pin name="3" x="7.62" y="-5.08" visible="pin" length="middle" direction="pas" swaplevel="1" rot="R180"/>
+<pin name="5" x="7.62" y="-2.54" visible="pin" length="middle" direction="pas" swaplevel="1" rot="R180"/>
+<pin name="2" x="-7.62" y="-7.62" visible="pin" length="middle" direction="pas" swaplevel="1"/>
+<pin name="4" x="-7.62" y="-5.08" visible="pin" length="middle" direction="pas" swaplevel="1"/>
+<pin name="6" x="-7.62" y="-2.54" visible="pin" length="middle" direction="pas" swaplevel="1"/>
+<pin name="7" x="7.62" y="0" visible="pin" length="middle" direction="pas" swaplevel="1" rot="R180"/>
+<pin name="9" x="7.62" y="2.54" visible="pin" length="middle" direction="pas" swaplevel="1" rot="R180"/>
+<pin name="VCC" x="7.62" y="5.08" visible="pin" length="middle" direction="pas" swaplevel="1" rot="R180"/>
+<pin name="8" x="-7.62" y="0" visible="pin" length="middle" direction="pas" swaplevel="1"/>
+<pin name="10" x="-7.62" y="2.54" visible="pin" length="middle" direction="pas" swaplevel="1"/>
+<pin name="12" x="-7.62" y="5.08" visible="pin" length="middle" direction="pas" swaplevel="1"/>
+<pin name="14" x="-7.62" y="7.62" visible="pin" length="middle" direction="pas" swaplevel="1"/>
+<pin name="GND" x="7.62" y="7.62" visible="pin" length="middle" direction="pas" swaplevel="1" rot="R180"/>
 </symbol>
 <symbol name="MA05-1">
 <wire x1="3.81" y1="-7.62" x2="-1.27" y2="-7.62" width="0.4064" layer="94"/>
@@ -1459,6 +1509,48 @@ Source: DCJ0303.pdf</description>
 <text x="-0.2794" y="5.08" size="3.4798" layer="95" ratio="10" rot="SR0">&gt;Name</text>
 <text x="-1.7526" y="-8.89" size="3.4798" layer="96" ratio="10" rot="SR0">&gt;Value</text>
 </symbol>
+<symbol name="0473460001">
+<wire x1="0" y1="7.62" x2="0" y2="5.08" width="0.254" layer="94"/>
+<wire x1="0" y1="5.08" x2="0" y2="2.54" width="0.254" layer="94"/>
+<wire x1="0" y1="2.54" x2="0" y2="0" width="0.254" layer="94"/>
+<wire x1="0" y1="0" x2="0" y2="-2.54" width="0.254" layer="94"/>
+<wire x1="0" y1="-2.54" x2="0" y2="-5.08" width="0.254" layer="94"/>
+<wire x1="0" y1="-5.08" x2="0" y2="-7.62" width="0.254" layer="94"/>
+<wire x1="0" y1="-7.62" x2="2.54" y2="-10.16" width="0.254" layer="94"/>
+<wire x1="2.54" y1="-10.16" x2="7.62" y2="-10.16" width="0.254" layer="94"/>
+<wire x1="7.62" y1="-10.16" x2="7.62" y2="10.16" width="0.254" layer="94"/>
+<wire x1="7.62" y1="10.16" x2="2.54" y2="10.16" width="0.254" layer="94"/>
+<wire x1="2.54" y1="10.16" x2="0" y2="7.62" width="0.254" layer="94"/>
+<wire x1="0" y1="5.08" x2="2.54" y2="5.08" width="0.762" layer="94"/>
+<wire x1="0" y1="2.54" x2="2.54" y2="2.54" width="0.762" layer="94"/>
+<wire x1="0" y1="0" x2="2.54" y2="0" width="0.762" layer="94"/>
+<wire x1="0" y1="-2.54" x2="2.54" y2="-2.54" width="0.762" layer="94"/>
+<wire x1="0" y1="-5.08" x2="2.54" y2="-5.08" width="0.762" layer="94"/>
+<wire x1="2.54" y1="5.08" x2="2.54" y2="7.62" width="0.254" layer="94"/>
+<wire x1="2.54" y1="7.62" x2="6.35" y2="7.62" width="0.254" layer="94"/>
+<wire x1="6.35" y1="7.62" x2="6.35" y2="-7.62" width="0.254" layer="94"/>
+<wire x1="6.35" y1="-7.62" x2="2.54" y2="-7.62" width="0.254" layer="94"/>
+<wire x1="2.54" y1="-7.62" x2="2.54" y2="5.08" width="0.254" layer="94"/>
+<text x="2.5411" y="10.1644" size="1.27055" layer="95">&gt;NAME</text>
+<text x="2.54385" y="-11.4473" size="1.27193125" layer="96">&gt;VALUE</text>
+<pin name="VBUS" x="-5.08" y="5.08" length="middle" direction="pwr"/>
+<pin name="D-" x="-5.08" y="2.54" length="middle"/>
+<pin name="D+" x="-5.08" y="0" length="middle"/>
+<pin name="ID" x="-5.08" y="-2.54" length="middle"/>
+<pin name="GND" x="-5.08" y="-5.08" length="middle" direction="pas"/>
+</symbol>
+<symbol name="TLV75533PDBVR">
+<wire x1="-7.62" y1="7.62" x2="7.62" y2="7.62" width="0.4064" layer="94"/>
+<wire x1="7.62" y1="7.62" x2="7.62" y2="-7.62" width="0.4064" layer="94"/>
+<wire x1="7.62" y1="-7.62" x2="-7.62" y2="-7.62" width="0.4064" layer="94"/>
+<wire x1="-7.62" y1="-7.62" x2="-7.62" y2="7.62" width="0.4064" layer="94"/>
+<text x="-7.62218125" y="8.25736875" size="1.778509375" layer="95">&gt;NAME</text>
+<text x="-7.635190625" y="-10.1803" size="1.78155" layer="96">&gt;VALUE</text>
+<pin name="IN" x="-12.7" y="2.54" length="middle" direction="in"/>
+<pin name="EN" x="-12.7" y="0" length="middle" direction="in"/>
+<pin name="OUT" x="12.7" y="2.54" length="middle" direction="out" rot="R180"/>
+<pin name="GND" x="12.7" y="-5.08" length="middle" direction="pwr" rot="R180"/>
+</symbol>
 </symbols>
 <devicesets>
 <deviceset name="MDBT42Q">
@@ -1549,33 +1641,6 @@ Source: DCJ0303.pdf</description>
 </device>
 </devices>
 </deviceset>
-<deviceset name="12VIN" prefix="J" uservalue="yes">
-<description>&lt;b&gt;DC POWER JACK&lt;/b&gt;&lt;p&gt;
-Source: DCJ0303.pdf</description>
-<gates>
-<gate name="G$1" symbol="DC-JACK-SWITCH" x="0" y="0"/>
-</gates>
-<devices>
-<device name="" package="DCJ0303">
-<connects>
-<connect gate="G$1" pin="1" pad="1"/>
-<connect gate="G$1" pin="2" pad="2"/>
-<connect gate="G$1" pin="3" pad="3"/>
-</connects>
-<package3dinstances>
-<package3dinstance package3d_urn="urn:adsk.eagle:package:7493/1"/>
-</package3dinstances>
-<technologies>
-<technology name="">
-<attribute name="MF" value="" constant="no"/>
-<attribute name="MPN" value="" constant="no"/>
-<attribute name="OC_FARNELL" value="unknown" constant="no"/>
-<attribute name="OC_NEWARK" value="unknown" constant="no"/>
-</technology>
-</technologies>
-</device>
-</devices>
-</deviceset>
 <deviceset name="USBCON" prefix="X" uservalue="yes">
 <description>&lt;b&gt;BERG&lt;/b&gt; USB connector</description>
 <gates>
@@ -1613,9 +1678,7 @@ Source: DCJ0303.pdf</description>
 <connects>
 <connect gate="G$1" pin="1" pad="1"/>
 <connect gate="G$1" pin="10" pad="10"/>
-<connect gate="G$1" pin="11" pad="11"/>
 <connect gate="G$1" pin="12" pad="12"/>
-<connect gate="G$1" pin="13" pad="13"/>
 <connect gate="G$1" pin="14" pad="14"/>
 <connect gate="G$1" pin="2" pad="2"/>
 <connect gate="G$1" pin="3" pad="3"/>
@@ -1625,6 +1688,8 @@ Source: DCJ0303.pdf</description>
 <connect gate="G$1" pin="7" pad="7"/>
 <connect gate="G$1" pin="8" pad="8"/>
 <connect gate="G$1" pin="9" pad="9"/>
+<connect gate="G$1" pin="GND" pad="13"/>
+<connect gate="G$1" pin="VCC" pad="11"/>
 </connects>
 <package3dinstances>
 <package3dinstance package3d_urn="urn:adsk.eagle:package:8330/1"/>
@@ -1798,6 +1863,59 @@ Source: DCJ0303.pdf</description>
 <technology name="">
 <attribute name="MANUFACTURER_PART_NUMBER" value="2468" constant="no"/>
 <attribute name="VENDOR" value="SILICON LABS" constant="no"/>
+</technology>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="USBMIRCOFEMALE" prefix="P">
+<description>Conn Micro USB Type B RCP 5 POS 0.65mm Solder RA SMD 5 Terminal 1 Port T/R</description>
+<gates>
+<gate name="G$1" symbol="0473460001" x="0" y="0"/>
+</gates>
+<devices>
+<device name="" package="MOLEX_0473460001">
+<connects>
+<connect gate="G$1" pin="D+" pad="3"/>
+<connect gate="G$1" pin="D-" pad="2"/>
+<connect gate="G$1" pin="GND" pad="5"/>
+<connect gate="G$1" pin="ID" pad="4"/>
+<connect gate="G$1" pin="VBUS" pad="1"/>
+</connects>
+<technologies>
+<technology name="">
+<attribute name="AVAILABILITY" value="Unavailable"/>
+<attribute name="DESCRIPTION" value=" Conn Micro USB Type B RCP 5 POS 0.65mm Solder RA SMD 5 Terminal 1 Port T/R "/>
+<attribute name="MF" value="Weidmuller"/>
+<attribute name="MP" value="0473460001"/>
+<attribute name="PACKAGE" value="None"/>
+<attribute name="PRICE" value="None"/>
+</technology>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="3.3V-REGULATOR" prefix="U">
+<description>500mA Low-IQ Small-Size Low-Dropout (LDO) Regulator 5-SOT-23 -40 to 125</description>
+<gates>
+<gate name="G$1" symbol="TLV75533PDBVR" x="0" y="0"/>
+</gates>
+<devices>
+<device name="" package="SOT95P280X145-5N">
+<connects>
+<connect gate="G$1" pin="EN" pad="3"/>
+<connect gate="G$1" pin="GND" pad="2"/>
+<connect gate="G$1" pin="IN" pad="1"/>
+<connect gate="G$1" pin="OUT" pad="5"/>
+</connects>
+<technologies>
+<technology name="">
+<attribute name="AVAILABILITY" value="Unavailable"/>
+<attribute name="DESCRIPTION" value=" 500mA Low-IQ Small-Size Low-Dropout _LDO_ Regulator 5-SOT-23 -40 to 125 "/>
+<attribute name="MF" value="Texas Instruments"/>
+<attribute name="MP" value="TLV75533PDBVR"/>
+<attribute name="PACKAGE" value="SOT-23 Texas Instruments"/>
+<attribute name="PRICE" value="None"/>
 </technology>
 </technologies>
 </device>
