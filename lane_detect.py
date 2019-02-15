@@ -16,10 +16,13 @@ import asyncio
 import os
 import sys
 import getopt
+import timeit
 from ctypes import c_wchar_p
+from cProfile import Profile
+from pstats import Stats
 
 NUM_WORKERS = 3
-NUM_FRAMES = 150
+NUM_FRAMES = 30
 #################################################################
 # Lists used for draw_lines
 #################################################################
@@ -345,6 +348,7 @@ def handle_images(input_img_1, input_img_2, input_img_3, output_img_1, output_im
     out_imgs = 0
     left_drift_cnt = 0
     right_drift_cnt = 0
+    vidcap = cv2.VideoCapture(filename)
     #################################################################
     # Code to handle getting images and placing them into buffer.
     # Could be either from a video (indicated by vid = True) or an
@@ -352,14 +356,14 @@ def handle_images(input_img_1, input_img_2, input_img_3, output_img_1, output_im
     # same image is processed NUM_FRAMES times in order to provide
     # meaningful timing information
     #################################################################
-    while(in_imgs != NUM_FRAMES and out_imgs != NUM_FRAMES):
+    while(in_imgs != NUM_FRAMES or out_imgs != NUM_FRAMES):
         #################################################################
         # Code to handle getting images from a source (either a video
         # or an image
         #################################################################
-        if vid:
+        if vid and in_imgs != NUM_FRAMES:
             # code to capture video
-            vidcap = cv2.VideoCapture(filename)
+            #vidcap = cv2.VideoCapture(filename)
             success = True
             # cv2.imwrite("frame%d.jpg" % count, image)     # save frame as JPEG file
             #################################################################
@@ -389,7 +393,7 @@ def handle_images(input_img_1, input_img_2, input_img_3, output_img_1, output_im
         #################################################################
         # Code to handle single image processing (NUM_FRAMES times for timing)
         #################################################################
-        else:
+        elif(in_imgs != NUM_FRAMES) :
             # code to process NUM_FRAMES images
             imgs = 0
             print("FILENAME in get_images: " + filename)
@@ -424,6 +428,7 @@ def handle_images(input_img_1, input_img_2, input_img_3, output_img_1, output_im
         # right drift = 1, no drift = 0
         #################################################################
         drift_value = output_buffers[curr_out_buffer].get()
+        curr_out_buffer = (curr_out_buffer + 1) % NUM_WORKERS
         #print("Drift Value from output buffer = " + str(drift_value) + ", PID: " + str(os.getpid()))
         if(drift_value == -1):
             right_drift_cnt = 0
@@ -525,6 +530,9 @@ def main(argv):
     img_processing_2_process = Process(target=processImage, args=(input_img_2, output_img_2))
     img_processing_3_process = Process(target=processImage, args=(input_img_3, output_img_3))
 
+    prof = Profile()
+    prof.enable()
+
     img_handling_process.start()
     img_processing_1_process.start()
     img_processing_2_process.start()
@@ -538,6 +546,17 @@ def main(argv):
     print("Finished Process 3")
     img_processing_3_process.join()
     print("Finished Process 4")
+
+    end = time.time()
+    print("Total Time: " + str(end - start) + " sec")
+
+    prof.disable()
+    prof.dump_stats('mystats.stats')
+
+    with open('mystats_output.txt', 'wt') as output:
+        stats = Stats('mystats.stats', stream=output)
+        stats.sort_stats('cumulative', 'time')
+        stats.print_stats()
     # img_opening_process.start()
     # img_processing_process.start()
     # img_writing_process.start()
@@ -549,11 +568,6 @@ def main(argv):
     # img_writing_process.join()
     # print("finished process 2")
 
-
-
-
-    end = time.time()
-    print("Total Time: " + str(end - start) + " sec")
 
 if __name__ == "__main__":
    main(sys.argv[1:])
