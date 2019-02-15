@@ -1234,6 +1234,7 @@ MELF 0.25 W</description>
 <text x="-3.2766" y="-0.635" size="1.27" layer="25" ratio="6" rot="SR0">&gt;Name</text>
 </package>
 <<<<<<< HEAD
+<<<<<<< HEAD
 <package name="MOLEX_0473460001">
 <wire x1="-4.2" y1="-4.44" x2="4.2" y2="-4.44" width="0.127" layer="21"/>
 <wire x1="-3.9" y1="-5.14" x2="3.9" y2="-5.14" width="0.127" layer="21"/>
@@ -1284,6 +1285,8 @@ MELF 0.25 W</description>
 <smd name="4" x="1.255" y="-0.95" dx="1.21" dy="0.59" layer="1" roundness="50" rot="R180"/>
 <smd name="5" x="1.255" y="0.95" dx="1.21" dy="0.59" layer="1" roundness="50" rot="R180"/>
 =======
+=======
+>>>>>>> d3cbb28f10d474e11fa1671b6f7d9c6e78da9a4c
 <package name="TACTILE_SWITCH_SMD_6.2MM_TALL" urn="urn:adsk.eagle:footprint:40107/1" locally_modified="yes">
 <description>&lt;h3&gt;Momentary Switch (Pushbutton) - SPST - SMD, 6.2mm Square&lt;/h3&gt;
 &lt;p&gt;Normally-open (NO) SPST momentary switches (buttons, pushbuttons).&lt;/p&gt;
@@ -1395,6 +1398,9 @@ MELF 0.25 W</description>
 <rectangle x1="-0.254" y1="-0.254" x2="0.254" y2="0.254" layer="51"/>
 <rectangle x1="-2.794" y1="-0.254" x2="-2.286" y2="0.254" layer="51"/>
 <rectangle x1="2.286" y1="-0.254" x2="2.794" y2="0.254" layer="51"/>
+<<<<<<< HEAD
+>>>>>>> d3cbb28f10d474e11fa1671b6f7d9c6e78da9a4c
+=======
 >>>>>>> d3cbb28f10d474e11fa1671b6f7d9c6e78da9a4c
 </package>
 </packages>
@@ -1750,6 +1756,7 @@ LED - BLUE</description>
 <text x="-1.7526" y="-8.89" size="3.4798" layer="96" ratio="10" rot="SR0">&gt;Value</text>
 </symbol>
 <<<<<<< HEAD
+<<<<<<< HEAD
 <symbol name="0473460001">
 <wire x1="0" y1="7.62" x2="0" y2="5.08" width="0.254" layer="94"/>
 <wire x1="0" y1="5.08" x2="0" y2="2.54" width="0.254" layer="94"/>
@@ -1792,6 +1799,8 @@ LED - BLUE</description>
 <pin name="OUT" x="12.7" y="2.54" length="middle" direction="out" rot="R180"/>
 <pin name="GND" x="12.7" y="-5.08" length="middle" direction="pwr" rot="R180"/>
 =======
+=======
+>>>>>>> d3cbb28f10d474e11fa1671b6f7d9c6e78da9a4c
 <symbol name="SWITCH-MOMENTARY-2">
 <description>&lt;h3&gt;Momentary Switch (Pushbutton) - SPST&lt;/h3&gt;
 &lt;p&gt;Normally-open (NO) SPST momentary switches (buttons, pushbuttons).&lt;/p&gt;</description>
@@ -1842,6 +1851,9 @@ LED - BLUE</description>
 <pin name="GPIO3" x="7.62" y="-2.54" visible="pin" length="middle" direction="pas" swaplevel="1" rot="R180"/>
 <pin name="GPIO2" x="7.62" y="0" visible="pin" length="middle" direction="pas" swaplevel="1" rot="R180"/>
 <pin name="GPIO1" x="7.62" y="2.54" visible="pin" length="middle" direction="pas" swaplevel="1" rot="R180"/>
+<<<<<<< HEAD
+>>>>>>> d3cbb28f10d474e11fa1671b6f7d9c6e78da9a4c
+=======
 >>>>>>> d3cbb28f10d474e11fa1671b6f7d9c6e78da9a4c
 </symbol>
 </symbols>
@@ -2162,6 +2174,7 @@ LED - BLUE</description>
 </devices>
 </deviceset>
 <<<<<<< HEAD
+<<<<<<< HEAD
 <deviceset name="USBMIRCOFEMALE" prefix="P">
 <description>Conn Micro USB Type B RCP 5 POS 0.65mm Solder RA SMD 5 Terminal 1 Port T/R</description>
 <gates>
@@ -2185,6 +2198,8 @@ LED - BLUE</description>
 <attribute name="PACKAGE" value="None"/>
 <attribute name="PRICE" value="None"/>
 =======
+=======
+>>>>>>> d3cbb28f10d474e11fa1671b6f7d9c6e78da9a4c
 <deviceset name="BUTTON">
 <gates>
 <gate name="G$1" symbol="SWITCH-MOMENTARY-2" x="0" y="0"/>
@@ -2262,12 +2277,16 @@ Used in manufacturing several products at SparkFun.
 <technology name="">
 <attribute name="PROD_ID" value="DIO-13728" constant="no"/>
 <attribute name="VALUE" value="White, 60mA" constant="no"/>
+<<<<<<< HEAD
+>>>>>>> d3cbb28f10d474e11fa1671b6f7d9c6e78da9a4c
+=======
 >>>>>>> d3cbb28f10d474e11fa1671b6f7d9c6e78da9a4c
 </technology>
 </technologies>
 </device>
 </devices>
 </deviceset>
+<<<<<<< HEAD
 <<<<<<< HEAD
 <deviceset name="3.3V-REGULATOR" prefix="U">
 <description>500mA Low-IQ Small-Size Low-Dropout (LDO) Regulator 5-SOT-23 -40 to 125</description>
@@ -2291,6 +2310,8 @@ Used in manufacturing several products at SparkFun.
 <attribute name="PACKAGE" value="SOT-23 Texas Instruments"/>
 <attribute name="PRICE" value="None"/>
 =======
+=======
+>>>>>>> d3cbb28f10d474e11fa1671b6f7d9c6e78da9a4c
 <deviceset name="GPIO" prefix="SV" uservalue="yes">
 <description>&lt;b&gt;PIN HEADER&lt;/b&gt;</description>
 <gates>
@@ -2312,6 +2333,9 @@ Used in manufacturing several products at SparkFun.
 <attribute name="MPN" value="" constant="no"/>
 <attribute name="OC_FARNELL" value="unknown" constant="no"/>
 <attribute name="OC_NEWARK" value="unknown" constant="no"/>
+<<<<<<< HEAD
+>>>>>>> d3cbb28f10d474e11fa1671b6f7d9c6e78da9a4c
+=======
 >>>>>>> d3cbb28f10d474e11fa1671b6f7d9c6e78da9a4c
 </technology>
 </technologies>
