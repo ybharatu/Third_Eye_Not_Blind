@@ -12,11 +12,7 @@ import cv2
 import time
 from multiprocessing import Process, Value, Array, Lock
 import multiprocessing
-<<<<<<< HEAD
-import collections
-=======
 import asyncio
->>>>>>> 8b79d543717fb09ad36ba43a321aae10a59cebbd
 import os
 import sys
 import getopt
@@ -165,11 +161,8 @@ def draw_lines(img, lines, thickness=5):
         midstat_line_x1 = int((img.shape[1] / 2))
         midstat_line_x2 = int((img.shape[1] / 2))
 
-<<<<<<< HEAD
         middyn_line_x1 = int(((left_line_x1 + right_line_x1)/ 2))
-=======
         middyn_line_x1 = int(((left_line_x1 + right_line_x1) / 2))
->>>>>>> 8b79d543717fb09ad36ba43a321aae10a59cebbd
         middyn_line_x2 = middyn_line_x1
 
         pts = np.array([[left_line_x1, int(0.65 * img.shape[0])], [left_line_x2, int(img.shape[0])],
@@ -180,15 +173,10 @@ def draw_lines(img, lines, thickness=5):
 
         cv2.line(img, (left_line_x1, int(0.65 * img.shape[0])), (left_line_x2, int(img.shape[0])), leftColor, 10)
         cv2.line(img, (right_line_x1, int(0.65 * img.shape[0])), (right_line_x2, int(img.shape[0])), rightColor, 10)
-<<<<<<< HEAD
-        cv2.line(img, (midstat_line_x1, int(0.65 * img.shape[0])), (midstat_line_x2, int(img.shape[0])), middleStatColor, 10)
-        cv2.line(img, (middyn_line_x1, int(0.65 * img.shape[0])), (middyn_line_x2, int(img.shape[0])), middleDynColor, 10)
-=======
         cv2.line(img, (midstat_line_x1, int(0.65 * img.shape[0])), (midstat_line_x2, int(img.shape[0])),
                  middleStatColor, 10)
         cv2.line(img, (middyn_line_x1, int(0.65 * img.shape[0])), (middyn_line_x2, int(img.shape[0])), middleDynColor,
                  10)
->>>>>>> 8b79d543717fb09ad36ba43a321aae10a59cebbd
 
     except ValueError:
         # I keep getting errors for some reason, so I put this here. Idk if the error still persists.
@@ -236,16 +224,6 @@ def find_position_in_lines(img, lines):
 
     center_line_x = int((img.shape[1] / 2))
 
-<<<<<<< HEAD
-    mid_lane_x = int(((left_line_x1 + right_line_x1)/ 2))
-
-    off_center_dist = center_line_x - mid_lane_x
-    #print("offset: " + str(off_center_dist))
-    if off_center_dist > drift_threshold:
-        return 1 #drifting right
-    elif off_center_dist < (-1)*drift_threshold:
-        return -1 #drifting left
-=======
     mid_lane_x = int(((left_line_x1 + right_line_x1) / 2))
 
     off_center_dist = center_line_x - mid_lane_x
@@ -254,7 +232,6 @@ def find_position_in_lines(img, lines):
         return 1  # drifting right
     elif off_center_dist < (-1) * drift_threshold:
         return -1  # drifting left
->>>>>>> 8b79d543717fb09ad36ba43a321aae10a59cebbd
     else:
         return 0
 
@@ -273,11 +250,9 @@ def hough_lines(img, rho, theta, threshold, min_line_len, max_line_gap):
     line_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
     #draw_lines(line_img, lines)
     return find_position_in_lines(img, lines)
-<<<<<<< HEAD
-    #return line_img
-=======
+
     #return lines
->>>>>>> 8b79d543717fb09ad36ba43a321aae10a59cebbd
+
 
 #################################################################
 # Function: linedetect
@@ -337,22 +312,15 @@ def get_images(img_buf, vid, filename):
         success = True
         imgs = 0
         #while success:
-<<<<<<< HEAD
-        while imgs is not 100:
-=======
+
         while imgs is not NUM_FRAMES:
->>>>>>> 8b79d543717fb09ad36ba43a321aae10a59cebbd
             # cv2.imwrite("frame%d.jpg" % count, image)     # save frame as JPEG file
             while img_buf.full():
                 pass
             success, image = vidcap.read()
             if success:
                 img_buf.put(image)
-<<<<<<< HEAD
-                print("Image " + str(imgs) + " in input buffer")
-=======
                 #print("Image " + str(imgs) + " in input buffer, PID: " + str(os.getPID()))
->>>>>>> 8b79d543717fb09ad36ba43a321aae10a59cebbd
                 imgs += 1
             else:
                 print("No more images")
@@ -517,12 +485,8 @@ def processImage(img_buf, out_buf):
             pass
         #out_buf.put(weighted_img)
         out_buf.put(dist_off)
-<<<<<<< HEAD
-        print("Image " + str(imgs) + " in Output Buffer")
-        #print("length of output buffer: " + str(out_buf.qsize()))
-=======
+
         #print("Image " + str(imgs) + " in Output Buffer, PID: " + str(os.getpid()))
->>>>>>> 8b79d543717fb09ad36ba43a321aae10a59cebbd
         imgs += 1
         #print("NUM_FRAMES / 3 = " + str(int(NUM_FRAMES / 3)) + " and imgs = " + str(imgs))
     #print("Process " + str(os.getpid()) + " has completed")
