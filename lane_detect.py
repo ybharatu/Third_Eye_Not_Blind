@@ -22,7 +22,7 @@ from cProfile import Profile
 from pstats import Stats
 
 NUM_WORKERS = 3
-NUM_FRAMES = 30
+NUM_FRAMES = 90 #should be multiple of 3
 #################################################################
 # Lists used for draw_lines
 #################################################################
@@ -31,7 +31,8 @@ rightSlope, leftSlope, rightIntercept, leftIntercept = [], [], [], []
 #################################################################
 # Other Global Variables
 #################################################################
-out_ext = ".png"
+out_ext = ".jpg"
+
 
 
 #################################################################
@@ -109,6 +110,21 @@ def roi(img):
     masked_image = cv2.bitwise_and(img, mask)
     return masked_image
 
+def resize_n_crop(image):
+    # cut image and lower resolution
+    res_percent = 0.5 #reduce resolution by this percent
+    new_width = int(image.shape[1]*res_percent)
+    r = new_width / image.shape[1]
+    dim = (new_width, int(image.shape[0] * r))
+
+    # perform the actual resizing of the image
+    resized = cv2.resize(image, dim)
+    #crop image
+    crop_percent_y = 0.6 #crop this percent of image from the top half
+    cropped = resized[int(resized.shape[0] * crop_percent_y):resized.shape[0], 0:resized.shape[1]] #img[y:y+h, x:x+w]
+    return cropped
+
+
 #################################################################
 # Function: draw_lines
 # Description: Takes in an image and a list of
@@ -140,6 +156,10 @@ def draw_lines(img, lines, thickness=5):
                     leftSlope.append(slope)
                     leftIntercept.append(yintercept)
 
+    print("array len = " + str(len(leftSlope)))
+    if len(leftSlope) == 0 or len(rightSlope) == 0:
+        print("not enough lines")
+        sys.exit(1)
 
                     # We use slicing operators and np.mean() to find the averages of the 30 previous frames
     # This makes the lines more stable, and less likely to shift rapidly
@@ -160,6 +180,7 @@ def draw_lines(img, lines, thickness=5):
         midstat_line_x1 = int((img.shape[1] / 2))
         midstat_line_x2 = int((img.shape[1] / 2))
 
+        middyn_line_x1 = int(((left_line_x1 + right_line_x1)/ 2))
         middyn_line_x1 = int(((left_line_x1 + right_line_x1) / 2))
         middyn_line_x2 = middyn_line_x1
 
@@ -189,24 +210,35 @@ def draw_lines(img, lines, thickness=5):
 def find_position_in_lines(img, lines):
     global rightSlope, leftSlope, rightIntercept, leftIntercept
     drift_threshold = 50
+    img_mid_point = img.shape[1]/2
 
     # this is used to filter out the outlying lines that can affect the average
     # We then use the slope we determined to find the y-intercept of the filtered lines by solving for b in y=mx+b
     for line in lines:
         for x1, y1, x2, y2 in line:
             slope = (y1 - y2) / (x1 - x2)
-            if slope > 0.3:
-                if x1 > 500:
+            #print("slope = " + str(slope))
+            if slope > 0.2:
+                if x1 > img_mid_point:
                     yintercept = y2 - (slope * x2)
                     rightSlope.append(slope)
                     rightIntercept.append(yintercept)
                 else:
                     None
-            elif slope < -0.3:
-                if x1 < 600:
+            elif slope < -0.2:
+                if x1 < img_mid_point:
                     yintercept = y2 - (slope * x2)
                     leftSlope.append(slope)
                     leftIntercept.append(yintercept)
+
+    if len(leftSlope) == 0:
+        print("not enough left slope lines")
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!")
+        sys.exit(1)
+    elif len(rightSlope) == 0:
+        print("not enough right slope lines")
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!")
+        sys.exit(1)
 
     # We use slicing operators and np.mean() to find the averages of the 30 previous frames
     # This makes the lines more stable, and less likely to shift rapidly
@@ -248,7 +280,9 @@ def hough_lines(img, rho, theta, threshold, min_line_len, max_line_gap):
     line_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
     #draw_lines(line_img, lines)
     return find_position_in_lines(img, lines)
+
     #return lines
+
 
 #################################################################
 # Function: linedetect
@@ -294,6 +328,8 @@ def write_images(out_buf, foo):
         imgs += 1
     print("Done writing images")
 
+
+
 #################################################################
 # Function: get_images
 # Description: Enqueues images onto the buffer.
@@ -306,6 +342,7 @@ def get_images(img_buf, vid, filename):
         success = True
         imgs = 0
         #while success:
+
         while imgs is not NUM_FRAMES:
             # cv2.imwrite("frame%d.jpg" % count, image)     # save frame as JPEG file
             while img_buf.full():
@@ -383,7 +420,19 @@ def handle_images(input_img_1, input_img_2, input_img_3, output_img_1, output_im
             # Puts image into buffer and updates current buffer
             #################################################################
             if success:
-                input_buffers[curr_in_buffer].put(image)
+                # cut image and lower resolution
+                # new_width = image.shape[1]/2
+                r = 600.0 / image.shape[1]
+                dim = (600, int(image.shape[0] * r))
+
+                # perform the actual resizing of the image and show it
+                resized = cv2.resize(image, dim)
+                cropped = resized[int(resized.shape[0]*0.6):resized.shape[0], 0:resized.shape[1]]
+                smaller_img = resize_n_crop(image)
+                #mpimg.imsave("processed_images/testimg_cropped" + out_ext, cropped)
+                start = time.time()
+                input_buffers[curr_in_buffer].put(smaller_img)
+                #print("put img in buffer time: " + str(time.time()-start))
                 #print("Image " + str(in_imgs) + " in input buffer")
                 in_imgs += 1
                 curr_in_buffer = (curr_in_buffer + 1) % NUM_WORKERS
@@ -466,18 +515,24 @@ def processImage(img_buf, out_buf):
     while imgs is not int(NUM_FRAMES / 3):
         while img_buf.empty():
             pass
+        start = time.time()
         image = img_buf.get()
-        interest = roi(image)
-        filterimg = color_filter(interest)
+        #print("get img from buffer time: " + str(time.time()-start))
+        #interest = roi(image)
+        filterimg = color_filter(image)
+        #mpimg.imsave("processed_images/testimg_filtered_"+ str(imgs) + out_ext, filterimg)
         canny = cv2.Canny(grayscale(filterimg), 50, 120)
+        #mpimg.imsave("processed_images/testimg_canny_"+ str(imgs) + out_ext, canny)
         #myline = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
         dist_off = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
         #weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
 
         while out_buf.full():
             pass
-        #out_buf.put(weighted_img)
+
         out_buf.put(dist_off)
+
+
         #print("Image " + str(imgs) + " in Output Buffer, PID: " + str(os.getpid()))
         imgs += 1
         #print("NUM_FRAMES / 3 = " + str(int(NUM_FRAMES / 3)) + " and imgs = " + str(imgs))
@@ -547,8 +602,10 @@ def main(argv):
     img_processing_3_process.join()
     print("Finished Process 4")
 
+
     end = time.time()
     print("Total Time: " + str(end - start) + " sec")
+    print("FPS: " + str((end - start)/NUM_FRAMES) + " sec")
 
     prof.disable()
     prof.dump_stats('mystats.stats')

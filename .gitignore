@@ -1,6 +1,8 @@
 .idea*
 processed_images/
 .DS*
+mystats.stats
+mystats_output.txt
 =======
 test_images/*
 
