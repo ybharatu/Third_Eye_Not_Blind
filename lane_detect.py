@@ -16,10 +16,13 @@ import asyncio
 import os
 import sys
 import getopt
+import timeit
 from ctypes import c_wchar_p
+from cProfile import Profile
+from pstats import Stats
 
 NUM_WORKERS = 3
-NUM_FRAMES = 150
+NUM_FRAMES = 90 #should be multiple of 3
 #################################################################
 # Lists used for draw_lines
 #################################################################
@@ -28,7 +31,9 @@ rightSlope, leftSlope, rightIntercept, leftIntercept = [], [], [], []
 #################################################################
 # Other Global Variables
 #################################################################
-out_ext = ".png"
+out_ext = ".jpg"
+idx = 0
+
 
 
 #################################################################
@@ -106,6 +111,21 @@ def roi(img):
     masked_image = cv2.bitwise_and(img, mask)
     return masked_image
 
+def resize_n_crop(image):
+    # cut image and lower resolution
+    res_percent = 0.5 #reduce resolution by this percent
+    new_width = int(image.shape[1]*res_percent)
+    r = new_width / image.shape[1]
+    dim = (new_width, int(image.shape[0] * r))
+
+    # perform the actual resizing of the image
+    resized = cv2.resize(image, dim)
+    #crop image
+    crop_percent_y = 0.6 #crop this percent of image from the top half
+    cropped = resized[int(resized.shape[0] * crop_percent_y):resized.shape[0], 0:resized.shape[1]] #img[y:y+h, x:x+w]
+    return cropped
+
+
 #################################################################
 # Function: draw_lines
 # Description: Takes in an image and a list of
@@ -114,6 +134,7 @@ def roi(img):
 #################################################################
 def draw_lines(img, lines, thickness=5):
     global rightSlope, leftSlope, rightIntercept, leftIntercept
+    img_mid_point = img.shape[1] / 2
     rightColor = [0, 255, 0]
     leftColor = [255, 0, 0]
     middleStatColor = [255, 255, 0]
@@ -125,18 +146,26 @@ def draw_lines(img, lines, thickness=5):
         for x1, y1, x2, y2 in line:
             slope = (y1 - y2) / (x1 - x2)
             if slope > 0.3:
-                if x1 > 500:
+                if x1 > img_mid_point:
                     yintercept = y2 - (slope * x2)
                     rightSlope.append(slope)
                     rightIntercept.append(yintercept)
                 else:
                     None
             elif slope < -0.3:
-                if x1 < 600:
+                if x1 < img_mid_point:
                     yintercept = y2 - (slope * x2)
                     leftSlope.append(slope)
                     leftIntercept.append(yintercept)
 
+    if len(leftSlope) == 0:
+        print("not enough left slope lines")
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!")
+        sys.exit(1)
+    elif len(rightSlope) == 0:
+        print("not enough right slope lines")
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!")
+        sys.exit(1)
 
                     # We use slicing operators and np.mean() to find the averages of the 30 previous frames
     # This makes the lines more stable, and less likely to shift rapidly
@@ -157,6 +186,7 @@ def draw_lines(img, lines, thickness=5):
         midstat_line_x1 = int((img.shape[1] / 2))
         midstat_line_x2 = int((img.shape[1] / 2))
 
+        middyn_line_x1 = int(((left_line_x1 + right_line_x1)/ 2))
         middyn_line_x1 = int(((left_line_x1 + right_line_x1) / 2))
         middyn_line_x2 = middyn_line_x1
 
@@ -186,24 +216,35 @@ def draw_lines(img, lines, thickness=5):
 def find_position_in_lines(img, lines):
     global rightSlope, leftSlope, rightIntercept, leftIntercept
     drift_threshold = 50
+    img_mid_point = img.shape[1]/2
 
     # this is used to filter out the outlying lines that can affect the average
     # We then use the slope we determined to find the y-intercept of the filtered lines by solving for b in y=mx+b
     for line in lines:
         for x1, y1, x2, y2 in line:
             slope = (y1 - y2) / (x1 - x2)
-            if slope > 0.3:
-                if x1 > 500:
+            #print("slope = " + str(slope))
+            if slope > 0.2:
+                if x1 > img_mid_point:
                     yintercept = y2 - (slope * x2)
                     rightSlope.append(slope)
                     rightIntercept.append(yintercept)
                 else:
                     None
-            elif slope < -0.3:
-                if x1 < 600:
+            elif slope < -0.2:
+                if x1 < img_mid_point:
                     yintercept = y2 - (slope * x2)
                     leftSlope.append(slope)
                     leftIntercept.append(yintercept)
+
+    if len(leftSlope) == 0:
+        print("not enough left slope lines")
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!")
+        sys.exit(1)
+    elif len(rightSlope) == 0:
+        print("not enough right slope lines")
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!")
+        sys.exit(1)
 
     # We use slicing operators and np.mean() to find the averages of the 30 previous frames
     # This makes the lines more stable, and less likely to shift rapidly
@@ -223,6 +264,7 @@ def find_position_in_lines(img, lines):
 
     off_center_dist = center_line_x - mid_lane_x
     # print("offset: " + str(off_center_dist))
+    print("Off Center Distance: " + str(off_center_dist))
     if off_center_dist > drift_threshold:
         return 1  # drifting right
     elif off_center_dist < (-1) * drift_threshold:
@@ -243,9 +285,20 @@ def hough_lines(img, rho, theta, threshold, min_line_len, max_line_gap):
     """
     lines = cv2.HoughLinesP(img, rho, theta, threshold, np.array([]), minLineLength=min_line_len, maxLineGap=max_line_gap)
     line_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
-    #draw_lines(line_img, lines)
+    draw_lines(line_img, lines)
+    return line_img
+
+def hough_lines_2(img, rho, theta, threshold, min_line_len, max_line_gap):
+    """
+    `img` should be the output of a Canny transform.
+    """
+    lines = cv2.HoughLinesP(img, rho, theta, threshold, np.array([]), minLineLength=min_line_len,
+                            maxLineGap=max_line_gap)
+    line_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
+    # draw_lines(line_img, lines)
     return find_position_in_lines(img, lines)
     #return lines
+
 
 #################################################################
 # Function: linedetect
@@ -291,6 +344,8 @@ def write_images(out_buf, foo):
         imgs += 1
     print("Done writing images")
 
+
+
 #################################################################
 # Function: get_images
 # Description: Enqueues images onto the buffer.
@@ -303,6 +358,7 @@ def get_images(img_buf, vid, filename):
         success = True
         imgs = 0
         #while success:
+
         while imgs is not NUM_FRAMES:
             # cv2.imwrite("frame%d.jpg" % count, image)     # save frame as JPEG file
             while img_buf.full():
@@ -345,6 +401,7 @@ def handle_images(input_img_1, input_img_2, input_img_3, output_img_1, output_im
     out_imgs = 0
     left_drift_cnt = 0
     right_drift_cnt = 0
+    vidcap = cv2.VideoCapture(filename)
     #################################################################
     # Code to handle getting images and placing them into buffer.
     # Could be either from a video (indicated by vid = True) or an
@@ -352,14 +409,14 @@ def handle_images(input_img_1, input_img_2, input_img_3, output_img_1, output_im
     # same image is processed NUM_FRAMES times in order to provide
     # meaningful timing information
     #################################################################
-    while(in_imgs != NUM_FRAMES and out_imgs != NUM_FRAMES):
+    while(in_imgs != NUM_FRAMES or out_imgs != NUM_FRAMES):
         #################################################################
         # Code to handle getting images from a source (either a video
         # or an image
         #################################################################
-        if vid:
+        if vid and in_imgs != NUM_FRAMES:
             # code to capture video
-            vidcap = cv2.VideoCapture(filename)
+            #vidcap = cv2.VideoCapture(filename)
             success = True
             # cv2.imwrite("frame%d.jpg" % count, image)     # save frame as JPEG file
             #################################################################
@@ -379,7 +436,19 @@ def handle_images(input_img_1, input_img_2, input_img_3, output_img_1, output_im
             # Puts image into buffer and updates current buffer
             #################################################################
             if success:
-                input_buffers[curr_in_buffer].put(image)
+                # cut image and lower resolution
+                # new_width = image.shape[1]/2
+                r = 600.0 / image.shape[1]
+                dim = (600, int(image.shape[0] * r))
+
+                # perform the actual resizing of the image and show it
+                resized = cv2.resize(image, dim)
+                cropped = resized[int(resized.shape[0]*0.6):resized.shape[0], 0:resized.shape[1]]
+                smaller_img = resize_n_crop(image)
+                #mpimg.imsave("processed_images/testimg_cropped" + out_ext, cropped)
+                start = time.time()
+                input_buffers[curr_in_buffer].put(smaller_img)
+                #print("put img in buffer time: " + str(time.time()-start))
                 #print("Image " + str(in_imgs) + " in input buffer")
                 in_imgs += 1
                 curr_in_buffer = (curr_in_buffer + 1) % NUM_WORKERS
@@ -389,7 +458,7 @@ def handle_images(input_img_1, input_img_2, input_img_3, output_img_1, output_im
         #################################################################
         # Code to handle single image processing (NUM_FRAMES times for timing)
         #################################################################
-        else:
+        elif(in_imgs != NUM_FRAMES) :
             # code to process NUM_FRAMES images
             imgs = 0
             print("FILENAME in get_images: " + filename)
@@ -424,6 +493,7 @@ def handle_images(input_img_1, input_img_2, input_img_3, output_img_1, output_im
         # right drift = 1, no drift = 0
         #################################################################
         drift_value = output_buffers[curr_out_buffer].get()
+        curr_out_buffer = (curr_out_buffer + 1) % NUM_WORKERS
         #print("Drift Value from output buffer = " + str(drift_value) + ", PID: " + str(os.getpid()))
         if(drift_value == -1):
             right_drift_cnt = 0
@@ -461,24 +531,141 @@ def processImage(img_buf, out_buf):
     while imgs is not int(NUM_FRAMES / 3):
         while img_buf.empty():
             pass
+        start = time.time()
         image = img_buf.get()
-        interest = roi(image)
-        filterimg = color_filter(interest)
+        #print("get img from buffer time: " + str(time.time()-start))
+        #interest = roi(image)
+        filterimg = color_filter(image)
+        #mpimg.imsave("processed_images/testimg_filtered_"+ str(imgs) + out_ext, filterimg)
         canny = cv2.Canny(grayscale(filterimg), 50, 120)
+        #mpimg.imsave("processed_images/testimg_canny_"+ str(imgs) + out_ext, canny)
         #myline = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
         dist_off = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
         #weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
 
         while out_buf.full():
             pass
-        #out_buf.put(weighted_img)
+
         out_buf.put(dist_off)
+
+
         #print("Image " + str(imgs) + " in Output Buffer, PID: " + str(os.getpid()))
         imgs += 1
         #print("NUM_FRAMES / 3 = " + str(int(NUM_FRAMES / 3)) + " and imgs = " + str(imgs))
     #print("Process " + str(os.getpid()) + " has completed")
 
 
+def processImageSerial(image):
+    global idx
+    #print("get img from buffer time: " + str(time.time()-start))
+    #interest = roi(image)
+    filterimg = color_filter(image)
+    #mpimg.imsave("processed_images/testimg_filtered_"+ str(imgs) + out_ext, filterimg)
+    canny = cv2.Canny(grayscale(filterimg), 50, 120)
+    #mpimg.imsave("processed_images/testimg_canny_"+ str(imgs) + out_ext, canny)
+    myline = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
+    dist_off = hough_lines_2(canny, 1, np.pi / 180, 10, 20, 5)
+    weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
+    mpimg.imsave("processed_images/testing_" + str(idx) + out_ext, weighted_img)
+    idx += 1
+    return dist_off
+
+def handle_image_serial(filename, vid):
+    in_imgs = 0
+    out_imgs = 0
+    left_drift_cnt = 0
+    right_drift_cnt = 0
+    vidcap = cv2.VideoCapture(filename)
+    #################################################################
+    # Code to handle getting images and placing them into buffer.
+    # Could be either from a video (indicated by vid = True) or an
+    # image (indicated by vid = False). If an image is selected, the
+    # same image is processed NUM_FRAMES times in order to provide
+    # meaningful timing information
+    #################################################################
+    while(in_imgs != NUM_FRAMES or out_imgs != NUM_FRAMES):
+        #################################################################
+        # Code to handle getting images from a source (either a video
+        # or an image
+        #################################################################
+        if vid and in_imgs != NUM_FRAMES:
+            #################################################################
+            # Check if current buffer is full and wait till it is not
+            #################################################################
+            success, image = vidcap.read()
+
+            #################################################################
+            # Puts image into buffer and updates current buffer
+            #################################################################
+            if success:
+                # cut image and lower resolution
+                # new_width = image.shape[1]/2
+                r = 600.0 / image.shape[1]
+                dim = (600, int(image.shape[0] * r))
+
+                # perform the actual resizing of the image and show it
+                resized = cv2.resize(image, dim)
+                cropped = resized[int(resized.shape[0]*0.6):resized.shape[0], 0:resized.shape[1]]
+                smaller_img = resize_n_crop(image)
+                drift_value = processImageSerial(smaller_img)
+                #print("put img in buffer time: " + str(time.time()-start))
+                #print("Image " + str(in_imgs) + " in input buffer")
+                in_imgs += 1
+            else:
+                print("No more images")
+            #print("Total frames processed: " + str(in_imgs))
+        #################################################################
+        # Code to handle single image processing (NUM_FRAMES times for timing)
+        #################################################################
+        elif(in_imgs != NUM_FRAMES) :
+            # code to process NUM_FRAMES images
+            imgs = 0
+            print("FILENAME in get_images: " + filename)
+            print("FILENAME: " + str(len(filename)))
+            image = mpimg.imread(filename)
+            #################################################################
+            # Checks if buffer is full and waits till its not full
+            #################################################################
+
+            #################################################################
+            # Puts image into buffer and updates current buffer
+            #################################################################
+            processImageSerial(image)
+            print("Image in input buffer " + str(imgs))
+            imgs += 1
+        #################################################################
+        # Consuming elements in the output buffer and returning drift
+        # values
+        #################################################################
+
+
+        #################################################################
+        # Incraments Appropriate drift counter Key: left drift = -1,
+        # right drift = 1, no drift = 0
+        #################################################################
+        if(drift_value == -1):
+            right_drift_cnt = 0
+            left_drift_cnt += 1
+        elif(drift_value == 1):
+            right_drift_cnt += 1
+            left_drift_cnt = 0
+        elif (drift_value == 0):
+            right_drift_cnt = 0
+            left_drift_cnt = 0
+        else:
+            print("Unexpected Value Obtained in Output buffer")
+        out_imgs += 1
+        #################################################################
+        # Note: Need to tell micro that the system is drifting
+        #################################################################
+        if(left_drift_cnt >= 3):
+            print("Drifting Left!! Index: " + str(idx))
+        elif(right_drift_cnt >= 3):
+            print("Drifting Right!!")
+        else:
+            print("Not Drifting  LeftCnt: " + str(left_drift_cnt) + " RightCnt: " + str(right_drift_cnt))
+
+    #print("Process " + str(os.getpid()) + " has completed")
 #################################################################
 # Function: Main Function
 # Note: if __name__ == '__main__' guard is necessary in order to
@@ -486,8 +673,9 @@ def processImage(img_buf, out_buf):
 #################################################################
 def main(argv):
     vid = False
+    serial = False
     try:
-        opts, args = getopt.getopt(argv, "hvi:", ["help", "video", "image="])
+        opts, args = getopt.getopt(argv, "hvsi:", ["help", "video","serial" ,"image="])
     except getopt.GetoptError:
         print('lane_detect.py -i <filename> -v')
         sys.exit(2)
@@ -500,44 +688,56 @@ def main(argv):
             filename = arg.strip()
         elif opt in ("-v", "--video"):
             vid = True
+        elif opt in ("-s", "--serial"):
+            serial = True
 
     print("FILENAME: " + filename)
     start = time.time()
+    if not serial:
+        input_img_1 = multiprocessing.Queue()
+        input_img_2 = multiprocessing.Queue()
+        input_img_3 = multiprocessing.Queue()
 
-    input_img_1 = multiprocessing.Queue()
-    input_img_2 = multiprocessing.Queue()
-    input_img_3 = multiprocessing.Queue()
+        output_img_1 = multiprocessing.Queue()
+        output_img_2 = multiprocessing.Queue()
+        output_img_3 = multiprocessing.Queue()
 
-    output_img_1 = multiprocessing.Queue()
-    output_img_2 = multiprocessing.Queue()
-    output_img_3 = multiprocessing.Queue()
+        # img_buf = multiprocessing.Queue()
+        # out_buf = multiprocessing.Queue()
 
-    # img_buf = multiprocessing.Queue()
-    # out_buf = multiprocessing.Queue()
+        # img_opening_process = Process(target=get_images, args=(img_buf, vid, filename))
+        # img_processing_process = Process(target=processImage, args=(img_buf, out_buf))
+        # img_writing_process = Process(target=write_images, args=(out_buf, None))
 
-    # img_opening_process = Process(target=get_images, args=(img_buf, vid, filename))
-    # img_processing_process = Process(target=processImage, args=(img_buf, out_buf))
-    # img_writing_process = Process(target=write_images, args=(out_buf, None))
+        img_handling_process = Process(target=handle_images, args=(input_img_1, input_img_2, input_img_3,\
+                                                                output_img_1, output_img_2, output_img_3, vid, filename))
+        img_processing_1_process = Process(target=processImage, args=(input_img_1, output_img_1))
+        img_processing_2_process = Process(target=processImage, args=(input_img_2, output_img_2))
+        img_processing_3_process = Process(target=processImage, args=(input_img_3, output_img_3))
 
-    img_handling_process = Process(target=handle_images, args=(input_img_1, input_img_2, input_img_3,\
-                                                            output_img_1, output_img_2, output_img_3, vid, filename))
-    img_processing_1_process = Process(target=processImage, args=(input_img_1, output_img_1))
-    img_processing_2_process = Process(target=processImage, args=(input_img_2, output_img_2))
-    img_processing_3_process = Process(target=processImage, args=(input_img_3, output_img_3))
+        prof = Profile()
+        prof.enable()
 
-    img_handling_process.start()
-    img_processing_1_process.start()
-    img_processing_2_process.start()
-    img_processing_3_process.start()
+        img_handling_process.start()
+        img_processing_1_process.start()
+        img_processing_2_process.start()
+        img_processing_3_process.start()
 
-    img_handling_process.join()
-    print("Finished Process 1")
-    img_processing_1_process.join()
-    print("Finished Process 2")
-    img_processing_2_process.join()
-    print("Finished Process 3")
-    img_processing_3_process.join()
-    print("Finished Process 4")
+        img_handling_process.join()
+        print("Finished Process 1")
+        img_processing_1_process.join()
+        print("Finished Process 2")
+        img_processing_2_process.join()
+        print("Finished Process 3")
+        img_processing_3_process.join()
+        print("Finished Process 4")
+    else:
+        handle_image_serial(filename, vid)
+
+    end = time.time()
+    print("Total Time: " + str(end - start) + " sec")
+    print("FPS: " + str((NUM_FRAMES / (end - start))) + " sec")
+
     # img_opening_process.start()
     # img_processing_process.start()
     # img_writing_process.start()
@@ -549,11 +749,6 @@ def main(argv):
     # img_writing_process.join()
     # print("finished process 2")
 
-
-
-
-    end = time.time()
-    print("Total Time: " + str(end - start) + " sec")
 
 if __name__ == "__main__":
    main(sys.argv[1:])
