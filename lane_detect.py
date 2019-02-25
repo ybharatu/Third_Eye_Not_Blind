@@ -110,6 +110,13 @@ def roi(img):
     masked_image = cv2.bitwise_and(img, mask)
     return masked_image
 
+
+#################################################################
+# Function: resize_n_crop
+# Description: Takes in an image and reduces the resolution by
+# half, then crops the bottom 40% of the image and returns the
+# resulting image
+#################################################################
 def resize_n_crop(image):
     # cut image and lower resolution
     res_percent = 0.5 #reduce resolution by this percent
@@ -117,7 +124,6 @@ def resize_n_crop(image):
     r = new_width / image.shape[1]
     dim = (new_width, int(image.shape[0] * r))
 
-    # perform the actual resizing of the image
     resized = cv2.resize(image, dim)
     #crop image
     crop_percent_y = 0.6 #crop this percent of image from the top half
@@ -137,6 +143,8 @@ def draw_lines(img, lines, thickness=5):
     leftColor = [255, 0, 0]
     middleStatColor = [255, 255, 0]
     middleDynColor = [255, 255, 255]
+    drift_threshold = 50
+    img_mid_point = img.shape[1] / 2
 
     # this is used to filter out the outlying lines that can affect the average
     # We then use the slope we determined to find the y-intercept of the filtered lines by solving for b in y=mx+b
@@ -144,21 +152,25 @@ def draw_lines(img, lines, thickness=5):
         for x1, y1, x2, y2 in line:
             slope = (y1 - y2) / (x1 - x2)
             if slope > 0.3:
-                if x1 > 500:
+                if x1 > img_mid_point:
                     yintercept = y2 - (slope * x2)
                     rightSlope.append(slope)
                     rightIntercept.append(yintercept)
                 else:
                     None
             elif slope < -0.3:
-                if x1 < 600:
+                if x1 < img_mid_point:
                     yintercept = y2 - (slope * x2)
                     leftSlope.append(slope)
                     leftIntercept.append(yintercept)
 
-    print("array len = " + str(len(leftSlope)))
-    if len(leftSlope) == 0 or len(rightSlope) == 0:
-        print("not enough lines")
+    if len(leftSlope) == 0:
+        print("not enough left slope lines")
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!")
+        sys.exit(1)
+    elif len(rightSlope) == 0:
+        print("not enough right slope lines")
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!")
         sys.exit(1)
 
                     # We use slicing operators and np.mean() to find the averages of the 30 previous frames
@@ -257,6 +269,7 @@ def find_position_in_lines(img, lines):
     mid_lane_x = int(((left_line_x1 + right_line_x1) / 2))
 
     off_center_dist = center_line_x - mid_lane_x
+    print("off center dist: " + str(off_center_dist))
     # print("offset: " + str(off_center_dist))
     if off_center_dist > drift_threshold:
         return 1  # drifting right
@@ -278,11 +291,30 @@ def hough_lines(img, rho, theta, threshold, min_line_len, max_line_gap):
     """
     lines = cv2.HoughLinesP(img, rho, theta, threshold, np.array([]), minLineLength=min_line_len, maxLineGap=max_line_gap)
     line_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
-    #draw_lines(line_img, lines)
-    return find_position_in_lines(img, lines)
-
+    draw_lines(line_img, lines)
+    #return find_position_in_lines(img, lines)
+    return line_img
     #return lines
 
+
+#################################################################
+# Function: hough_lines
+# Description: Takes in the parameters of OpenCV HoughLinesP
+# function. Can be modified to draw/not draw the lines on the
+# image. Returns either line with image or list of
+# (start_pt1, end_pt1, start_pt2, end_pt2).
+#################################################################
+def hough_lines_2(img, rho, theta, threshold, min_line_len, max_line_gap):
+
+    """
+    `img` should be the output of a Canny transform.
+    """
+    lines = cv2.HoughLinesP(img, rho, theta, threshold, np.array([]), minLineLength=min_line_len, maxLineGap=max_line_gap)
+    #line_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
+    #draw_lines(line_img, lines)
+    return find_position_in_lines(img, lines)
+    #return line_img
+    #return lines
 
 #################################################################
 # Function: linedetect
@@ -366,7 +398,6 @@ def get_images(img_buf, vid, filename):
                 pass
 
             img_buf.put(image)
-            print("Image in input buffer " + str(imgs))
             imgs += 1
 
 #################################################################
@@ -499,7 +530,7 @@ def handle_images(input_img_1, input_img_2, input_img_3, output_img_1, output_im
         elif(right_drift_cnt >= 3):
             print("Drifting Right!!")
         else:
-            print("Not Drifting")
+            print("Not Drifting " + "left_cnt: " + str(left_drift_cnt) + " right_cnt: " + str(right_drift_cnt))
 
     #print("Process " + str(os.getpid()) + " has completed")
 
@@ -523,13 +554,14 @@ def processImage(img_buf, out_buf):
         #mpimg.imsave("processed_images/testimg_filtered_"+ str(imgs) + out_ext, filterimg)
         canny = cv2.Canny(grayscale(filterimg), 50, 120)
         #mpimg.imsave("processed_images/testimg_canny_"+ str(imgs) + out_ext, canny)
-        #myline = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
-        dist_off = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
-        #weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
+        myline = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
+        dist_off = hough_lines_2(canny, 1, np.pi / 180, 10, 20, 5)
+        weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
+        mpimg.imsave("processed_images/testing_"+ str(imgs) + "_" + str(os.getpid())+out_ext, weighted_img)
 
         while out_buf.full():
             pass
-
+        #print("dist_off: " + str(dist_off))
         out_buf.put(dist_off)
 
 
