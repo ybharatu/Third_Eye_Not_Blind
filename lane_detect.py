@@ -22,7 +22,7 @@ from cProfile import Profile
 from pstats import Stats
 
 NUM_WORKERS = 3
-NUM_FRAMES = 90 #should be multiple of 3
+NUM_FRAMES = 120 #should be multiple of 3
 #################################################################
 # Lists used for draw_lines
 #################################################################
@@ -269,7 +269,7 @@ def find_position_in_lines(img, lines):
     mid_lane_x = int(((left_line_x1 + right_line_x1) / 2))
 
     off_center_dist = center_line_x - mid_lane_x
-    print("off center dist: " + str(off_center_dist))
+    # print("off center dist: " + str(off_center_dist))
     # print("offset: " + str(off_center_dist))
     if off_center_dist > drift_threshold:
         return 1  # drifting right
@@ -530,8 +530,8 @@ def handle_images(input_img_1, input_img_2, input_img_3, output_img_1, output_im
         elif(right_drift_cnt >= 3):
             print("Drifting Right!!")
         else:
-            print("Not Drifting " + "left_cnt: " + str(left_drift_cnt) + " right_cnt: " + str(right_drift_cnt))
-
+            #print("Not Drifting " + "left_cnt: " + str(left_drift_cnt) + " right_cnt: " + str(right_drift_cnt))
+            print("Not Drifting")
     #print("Process " + str(os.getpid()) + " has completed")
 
 
@@ -554,10 +554,10 @@ def processImage(img_buf, out_buf):
         #mpimg.imsave("processed_images/testimg_filtered_"+ str(imgs) + out_ext, filterimg)
         canny = cv2.Canny(grayscale(filterimg), 50, 120)
         #mpimg.imsave("processed_images/testimg_canny_"+ str(imgs) + out_ext, canny)
-        myline = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
+        #myline = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
         dist_off = hough_lines_2(canny, 1, np.pi / 180, 10, 20, 5)
-        weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
-        mpimg.imsave("processed_images/testing_"+ str(imgs) + "_" + str(os.getpid())+out_ext, weighted_img)
+        #weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
+        #mpimg.imsave("processed_images/testing_"+ str(imgs) + "_" + str(os.getpid())+out_ext, weighted_img)
 
         while out_buf.full():
             pass
@@ -594,7 +594,7 @@ def main(argv):
             vid = True
 
     print("FILENAME: " + filename)
-    start = time.time()
+    #start = time.time()
 
     input_img_1 = multiprocessing.Queue()
     input_img_2 = multiprocessing.Queue()
@@ -620,6 +620,7 @@ def main(argv):
     prof = Profile()
     prof.enable()
 
+    start = time.time()
     img_handling_process.start()
     img_processing_1_process.start()
     img_processing_2_process.start()
@@ -637,7 +638,7 @@ def main(argv):
 
     end = time.time()
     print("Total Time: " + str(end - start) + " sec")
-    print("FPS: " + str((end - start)/NUM_FRAMES) + " sec")
+    print("FPS: " + str(NUM_FRAMES/(end - start)) + " sec")
 
     prof.disable()
     prof.dump_stats('mystats.stats')
