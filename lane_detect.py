@@ -21,8 +21,8 @@ from ctypes import c_wchar_p
 from cProfile import Profile
 from pstats import Stats
 
-NUM_WORKERS = 3
-NUM_FRAMES = 90 #should be multiple of 3
+NUM_WORKERS = 2
+NUM_FRAMES = 210 #should be multiple of 3
 #################################################################
 # Lists used for draw_lines
 #################################################################
@@ -375,12 +375,12 @@ def get_images(img_buf, vid, filename):
 # input stream. Outputs appropriate values using images fom the
 # output buffer.
 #################################################################
-def handle_images(input_img_1, input_img_2, input_img_3, output_img_1, output_img_2, output_img_3, vid, filename):
+def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, filename):
 
     curr_in_buffer = 0
     curr_out_buffer = 0
-    input_buffers = [input_img_1, input_img_2, input_img_3]
-    output_buffers = [output_img_1, output_img_2, output_img_3]
+    input_buffers = [input_img_1, input_img_2]
+    output_buffers = [output_img_1, output_img_2]
     in_imgs = 0
     out_imgs = 0
     left_drift_cnt = 0
@@ -512,7 +512,7 @@ def handle_images(input_img_1, input_img_2, input_img_3, output_img_1, output_im
 #################################################################
 def processImage(img_buf, out_buf):
     imgs = 0
-    while imgs is not int(NUM_FRAMES / 3):
+    while imgs is not int(NUM_FRAMES / NUM_WORKERS):
         while img_buf.empty():
             pass
         start = time.time()
@@ -562,15 +562,14 @@ def main(argv):
             vid = True
 
     print("FILENAME: " + filename)
-    start = time.time()
 
     input_img_1 = multiprocessing.Queue()
     input_img_2 = multiprocessing.Queue()
-    input_img_3 = multiprocessing.Queue()
+    #input_img_3 = multiprocessing.Queue()
 
     output_img_1 = multiprocessing.Queue()
     output_img_2 = multiprocessing.Queue()
-    output_img_3 = multiprocessing.Queue()
+    #output_img_3 = multiprocessing.Queue()
 
     # img_buf = multiprocessing.Queue()
     # out_buf = multiprocessing.Queue()
@@ -579,19 +578,20 @@ def main(argv):
     # img_processing_process = Process(target=processImage, args=(img_buf, out_buf))
     # img_writing_process = Process(target=write_images, args=(out_buf, None))
 
-    img_handling_process = Process(target=handle_images, args=(input_img_1, input_img_2, input_img_3,\
-                                                            output_img_1, output_img_2, output_img_3, vid, filename))
+    img_handling_process = Process(target=handle_images, args=(input_img_1, input_img_2,\
+                                                            output_img_1, output_img_2, vid, filename))
     img_processing_1_process = Process(target=processImage, args=(input_img_1, output_img_1))
     img_processing_2_process = Process(target=processImage, args=(input_img_2, output_img_2))
-    img_processing_3_process = Process(target=processImage, args=(input_img_3, output_img_3))
+    #img_processing_3_process = Process(target=processImage, args=(input_img_3, output_img_3))
 
     prof = Profile()
     prof.enable()
-
+    
+    start = time.time()
     img_handling_process.start()
     img_processing_1_process.start()
     img_processing_2_process.start()
-    img_processing_3_process.start()
+    #img_processing_3_process.start()
 
     img_handling_process.join()
     print("Finished Process 1")
@@ -599,13 +599,13 @@ def main(argv):
     print("Finished Process 2")
     img_processing_2_process.join()
     print("Finished Process 3")
-    img_processing_3_process.join()
-    print("Finished Process 4")
+    #img_processing_3_process.join()
+    #print("Finished Process 4")
 
 
     end = time.time()
     print("Total Time: " + str(end - start) + " sec")
-    print("FPS: " + str((end - start)/NUM_FRAMES) + " sec")
+    print("FPS: " + str(NUM_FRAMES / (end - start)) + " sec")
 
     prof.disable()
     prof.dump_stats('mystats.stats')
