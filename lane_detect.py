@@ -243,11 +243,11 @@ def find_position_in_lines(img, lines):
     if len(leftSlope) == 0:
         print("not enough left slope lines")
         print("!!!!!!!!!!!!!!!!!!!!!!!!!")
-        sys.exit(1)
+        return 3
     elif len(rightSlope) == 0:
         print("not enough right slope lines")
         print("!!!!!!!!!!!!!!!!!!!!!!!!!")
-        sys.exit(1)
+        return 3
 
     # We use slicing operators and np.mean() to find the averages of the 30 previous frames
     # This makes the lines more stable, and less likely to shift rapidly
@@ -267,7 +267,7 @@ def find_position_in_lines(img, lines):
 
     off_center_dist = center_line_x - mid_lane_x
     # print("offset: " + str(off_center_dist))
-    print("Off Center Distance: " + str(off_center_dist))
+    #print("Off Center Distance: " + str(off_center_dist))
     if off_center_dist > drift_threshold:
         return 1  # drifting right
     elif off_center_dist < (-1) * drift_threshold:
@@ -544,7 +544,7 @@ def processImage(img_buf, out_buf):
         canny = cv2.Canny(grayscale(filterimg), 50, 120)
         #mpimg.imsave("processed_images/testimg_canny_"+ str(imgs) + out_ext, canny)
         #myline = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
-        dist_off = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
+        dist_off = hough_lines_2(canny, 1, np.pi / 180, 10, 20, 5)
         #weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
 
         while out_buf.full():
