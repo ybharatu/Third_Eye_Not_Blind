@@ -32,6 +32,7 @@ rightSlope, leftSlope, rightIntercept, leftIntercept = [], [], [], []
 # Other Global Variables
 #################################################################
 out_ext = ".jpg"
+idx = 0
 
 
 
@@ -133,6 +134,7 @@ def resize_n_crop(image):
 #################################################################
 def draw_lines(img, lines, thickness=5):
     global rightSlope, leftSlope, rightIntercept, leftIntercept
+    img_mid_point = img.shape[1] / 2
     rightColor = [0, 255, 0]
     leftColor = [255, 0, 0]
     middleStatColor = [255, 255, 0]
@@ -144,14 +146,14 @@ def draw_lines(img, lines, thickness=5):
         for x1, y1, x2, y2 in line:
             slope = (y1 - y2) / (x1 - x2)
             if slope > 0.3:
-                if x1 > 500:
+                if x1 > img_mid_point:
                     yintercept = y2 - (slope * x2)
                     rightSlope.append(slope)
                     rightIntercept.append(yintercept)
                 else:
                     None
             elif slope < -0.3:
-                if x1 < 600:
+                if x1 < img_mid_point:
                     yintercept = y2 - (slope * x2)
                     leftSlope.append(slope)
                     leftIntercept.append(yintercept)
@@ -159,6 +161,13 @@ def draw_lines(img, lines, thickness=5):
     print("array len = " + str(len(leftSlope)))
     if len(leftSlope) == 0 or len(rightSlope) == 0:
         print("not enough lines")
+    if len(leftSlope) == 0:
+        print("not enough left slope lines")
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!")
+        sys.exit(1)
+    elif len(rightSlope) == 0:
+        print("not enough right slope lines")
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!")
         sys.exit(1)
 
                     # We use slicing operators and np.mean() to find the averages of the 30 previous frames
@@ -258,6 +267,7 @@ def find_position_in_lines(img, lines):
 
     off_center_dist = center_line_x - mid_lane_x
     # print("offset: " + str(off_center_dist))
+    print("Off Center Distance: " + str(off_center_dist))
     if off_center_dist > drift_threshold:
         return 1  # drifting right
     elif off_center_dist < (-1) * drift_threshold:
@@ -278,7 +288,17 @@ def hough_lines(img, rho, theta, threshold, min_line_len, max_line_gap):
     """
     lines = cv2.HoughLinesP(img, rho, theta, threshold, np.array([]), minLineLength=min_line_len, maxLineGap=max_line_gap)
     line_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
-    #draw_lines(line_img, lines)
+    draw_lines(line_img, lines)
+    return line_img
+
+def hough_lines_2(img, rho, theta, threshold, min_line_len, max_line_gap):
+    """
+    `img` should be the output of a Canny transform.
+    """
+    lines = cv2.HoughLinesP(img, rho, theta, threshold, np.array([]), minLineLength=min_line_len,
+                            maxLineGap=max_line_gap)
+    line_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
+    # draw_lines(line_img, lines)
     return find_position_in_lines(img, lines)
 
     #return lines
@@ -539,6 +559,117 @@ def processImage(img_buf, out_buf):
     #print("Process " + str(os.getpid()) + " has completed")
 
 
+def processImageSerial(image):
+    global idx
+    #print("get img from buffer time: " + str(time.time()-start))
+    #interest = roi(image)
+    filterimg = color_filter(image)
+    #mpimg.imsave("processed_images/testimg_filtered_"+ str(imgs) + out_ext, filterimg)
+    canny = cv2.Canny(grayscale(filterimg), 50, 120)
+    #mpimg.imsave("processed_images/testimg_canny_"+ str(imgs) + out_ext, canny)
+    myline = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
+    dist_off = hough_lines_2(canny, 1, np.pi / 180, 10, 20, 5)
+    weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
+    mpimg.imsave("processed_images/testing_" + str(idx) + out_ext, weighted_img)
+    idx += 1
+    return dist_off
+
+def handle_image_serial(filename, vid):
+    in_imgs = 0
+    out_imgs = 0
+    left_drift_cnt = 0
+    right_drift_cnt = 0
+    vidcap = cv2.VideoCapture(filename)
+    #################################################################
+    # Code to handle getting images and placing them into buffer.
+    # Could be either from a video (indicated by vid = True) or an
+    # image (indicated by vid = False). If an image is selected, the
+    # same image is processed NUM_FRAMES times in order to provide
+    # meaningful timing information
+    #################################################################
+    while(in_imgs != NUM_FRAMES or out_imgs != NUM_FRAMES):
+        #################################################################
+        # Code to handle getting images from a source (either a video
+        # or an image
+        #################################################################
+        if vid and in_imgs != NUM_FRAMES:
+            #################################################################
+            # Check if current buffer is full and wait till it is not
+            #################################################################
+            success, image = vidcap.read()
+
+            #################################################################
+            # Puts image into buffer and updates current buffer
+            #################################################################
+            if success:
+                # cut image and lower resolution
+                # new_width = image.shape[1]/2
+                r = 600.0 / image.shape[1]
+                dim = (600, int(image.shape[0] * r))
+
+                # perform the actual resizing of the image and show it
+                resized = cv2.resize(image, dim)
+                cropped = resized[int(resized.shape[0]*0.6):resized.shape[0], 0:resized.shape[1]]
+                smaller_img = resize_n_crop(image)
+                drift_value = processImageSerial(smaller_img)
+                #print("put img in buffer time: " + str(time.time()-start))
+                #print("Image " + str(in_imgs) + " in input buffer")
+                in_imgs += 1
+            else:
+                print("No more images")
+            #print("Total frames processed: " + str(in_imgs))
+        #################################################################
+        # Code to handle single image processing (NUM_FRAMES times for timing)
+        #################################################################
+        elif(in_imgs != NUM_FRAMES) :
+            # code to process NUM_FRAMES images
+            imgs = 0
+            print("FILENAME in get_images: " + filename)
+            print("FILENAME: " + str(len(filename)))
+            image = mpimg.imread(filename)
+            #################################################################
+            # Checks if buffer is full and waits till its not full
+            #################################################################
+
+            #################################################################
+            # Puts image into buffer and updates current buffer
+            #################################################################
+            processImageSerial(image)
+            print("Image in input buffer " + str(imgs))
+            imgs += 1
+        #################################################################
+        # Consuming elements in the output buffer and returning drift
+        # values
+        #################################################################
+
+
+        #################################################################
+        # Incraments Appropriate drift counter Key: left drift = -1,
+        # right drift = 1, no drift = 0
+        #################################################################
+        if(drift_value == -1):
+            right_drift_cnt = 0
+            left_drift_cnt += 1
+        elif(drift_value == 1):
+            right_drift_cnt += 1
+            left_drift_cnt = 0
+        elif (drift_value == 0):
+            right_drift_cnt = 0
+            left_drift_cnt = 0
+        else:
+            print("Unexpected Value Obtained in Output buffer")
+        out_imgs += 1
+        #################################################################
+        # Note: Need to tell micro that the system is drifting
+        #################################################################
+        if(left_drift_cnt >= 3):
+            print("Drifting Left!! Index: " + str(idx))
+        elif(right_drift_cnt >= 3):
+            print("Drifting Right!!")
+        else:
+            print("Not Drifting  LeftCnt: " + str(left_drift_cnt) + " RightCnt: " + str(right_drift_cnt))
+
+    #print("Process " + str(os.getpid()) + " has completed")
 #################################################################
 # Function: Main Function
 # Note: if __name__ == '__main__' guard is necessary in order to
@@ -546,8 +677,9 @@ def processImage(img_buf, out_buf):
 #################################################################
 def main(argv):
     vid = False
+    serial = False
     try:
-        opts, args = getopt.getopt(argv, "hvi:", ["help", "video", "image="])
+        opts, args = getopt.getopt(argv, "hvsi:", ["help", "video","serial" ,"image="])
     except getopt.GetoptError:
         print('lane_detect.py -i <filename> -v')
         sys.exit(2)
@@ -560,6 +692,8 @@ def main(argv):
             filename = arg.strip()
         elif opt in ("-v", "--video"):
             vid = True
+        elif opt in ("-s", "--serial"):
+            serial = True
 
     print("FILENAME: " + filename)
 
@@ -614,6 +748,7 @@ def main(argv):
         stats = Stats('mystats.stats', stream=output)
         stats.sort_stats('cumulative', 'time')
         stats.print_stats()
+
     # img_opening_process.start()
     # img_processing_process.start()
     # img_writing_process.start()
