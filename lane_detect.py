@@ -20,7 +20,8 @@ import timeit
 from ctypes import c_wchar_p
 from cProfile import Profile
 from pstats import Stats
-import picamera
+# import picamera
+# from picamera.array import PiRGBArray
 import io
 
 
@@ -445,16 +446,28 @@ def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, fil
                 print("No more images")
 
         elif (live):
+            import picamera
+            from picamera.array import PiRGBArray
+
             in_imgs = 0
             with picamera.PiCamera() as camera:
-                while(in_imgs < NUM_FRAMES):
-                    camera.capture_continuous("source_images/image" + str(in_imgs) + out_ext)
-                    image = mpimg.imread("source_images/image" + str(in_imgs) + out_ext)
-                    smaller_img = resize_n_crop(image)
-                    input_buffers[curr_in_buffer].put(smaller_img)
-                    in_imgs += 1
+                camera.resolution = (640, 480)
+                rawCapture = PiRGBArray(camera)
+                time.sleep(0.1)  # wait for camera to warm up
+
+                for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=True):
+                    if in_imgs > NUM_FRAMES:
+                        break
+                    while input_buffers[curr_in_buffer].full():
+                        pass
+                    image = frame.array
+                    input_buffers[curr_in_buffer].put(image)
                     curr_in_buffer = (curr_in_buffer + 1) % NUM_WORKERS
-                    time.sleep(2)
+                    rawCapture.truncate(0)
+                    print("img " + str(in_imgs))
+                    in_imgs += 1
+
+
 
         #################################################################
         # Code to handle single image processing (NUM_FRAMES times for timing)
