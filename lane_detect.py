@@ -581,8 +581,9 @@ def main(argv):
             serial = True
         elif opt in ("-l", "--live"):
             live = True
+            filename = "livefeed"
 
-    #print("FILENAME: " + filename)
+    print("FILENAME: " + filename)
 
 
     input_img_1 = multiprocessing.Queue()
