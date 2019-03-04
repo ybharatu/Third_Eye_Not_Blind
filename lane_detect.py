@@ -20,6 +20,8 @@ import timeit
 from ctypes import c_wchar_p
 from cProfile import Profile
 from pstats import Stats
+import picamera
+import io
 
 
 NUM_WORKERS = 2
@@ -408,7 +410,6 @@ def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, fil
     out_imgs = 0
     left_drift_cnt = 0
     right_drift_cnt = 0
-    vidcap = cv2.VideoCapture(filename)
     #################################################################
     # Code to handle getting images and placing them into buffer.
     # Could be either from a video (indicated by vid = True) or an
@@ -422,6 +423,7 @@ def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, fil
         # or an image
         #################################################################
         if vid and in_imgs != NUM_FRAMES:
+            vidcap = cv2.VideoCapture(filename)
             #################################################################
             # Check if current buffer is full and wait till it is not
             #################################################################
@@ -442,9 +444,17 @@ def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, fil
             else:
                 print("No more images")
 
-        elif (live and in_imgs != NUM_FRAMES):
-            pass
-
+        elif (live):
+            in_imgs = 0
+            with picamera.PiCamera() as camera:
+                while(in_imgs < NUM_FRAMES):
+                    camera.capture_continuous("source_images/image" + str(in_imgs) + out_ext)
+                    image = mpimg.imread("source_images/image" + str(in_imgs) + out_ext)
+                    smaller_img = resize_n_crop(image)
+                    input_buffers[curr_in_buffer].put(smaller_img)
+                    in_imgs += 1
+                    curr_in_buffer = (curr_in_buffer + 1) % NUM_WORKERS
+                    time.sleep(2)
 
         #################################################################
         # Code to handle single image processing (NUM_FRAMES times for timing)
@@ -552,8 +562,9 @@ def processImage(img_buf, out_buf):
 def main(argv):
     vid = False
     serial = False
+    live = False
     try:
-        opts, args = getopt.getopt(argv, "hvsi:", ["help", "video","serial" ,"image="])
+        opts, args = getopt.getopt(argv, "hvsli:", ["help", "video", "serial", "live", "image="])
     except getopt.GetoptError:
         print('lane_detect.py -i <filename> -v')
         sys.exit(2)
@@ -568,6 +579,8 @@ def main(argv):
             vid = True
         elif opt in ("-s", "--serial"):
             serial = True
+        elif opt in ("-l", "--live"):
+            live = True
 
     print("FILENAME: " + filename)
 
@@ -588,7 +601,7 @@ def main(argv):
     # img_writing_process = Process(target=write_images, args=(out_buf, None))
 
     img_handling_process = Process(target=handle_images, args=(input_img_1, input_img_2,\
-                                                            output_img_1, output_img_2, vid, filename))
+                                                            output_img_1, output_img_2, vid, filename, live))
     img_processing_1_process = Process(target=processImage, args=(input_img_1, output_img_1))
     img_processing_2_process = Process(target=processImage, args=(input_img_2, output_img_2))
     #img_processing_3_process = Process(target=processImage, args=(input_img_3, output_img_3))
