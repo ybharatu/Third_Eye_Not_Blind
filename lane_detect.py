@@ -582,7 +582,7 @@ def main(argv):
         elif opt in ("-l", "--live"):
             live = True
 
-    print("FILENAME: " + filename)
+    #print("FILENAME: " + filename)
 
 
     input_img_1 = multiprocessing.Queue()
