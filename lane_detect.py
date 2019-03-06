@@ -243,11 +243,11 @@ def find_position_in_lines(img, lines):
     if len(leftSlope) == 0:
         print("not enough left slope lines")
         print("!!!!!!!!!!!!!!!!!!!!!!!!!")
-        sys.exit(1)
+        return 3
     elif len(rightSlope) == 0:
         print("not enough right slope lines")
         print("!!!!!!!!!!!!!!!!!!!!!!!!!")
-        sys.exit(1)
+        return 3
 
     # We use slicing operators and np.mean() to find the averages of the 30 previous frames
     # This makes the lines more stable, and less likely to shift rapidly
