@@ -94,9 +94,24 @@ def gaussian_blur(img, kernel_size):
 # masked image.
 #################################################################
 def roi(img):
-    x = int(img.shape[1])
-    y = int(img.shape[0])
-    shape = np.array([[int(0), int(y)], [int(x), int(y)], [int(0.55*x), int(0.6*y)], [int(0.45*x), int(0.6*y)]])
+    x = int(img.shape[1])  # width
+    y = int(img.shape[0])  # height
+    topline_percent_x = 0.4 #proportion of base line you want top line of trapazoid to be  /___\
+    topline_percent_y = 0.6 #how tall you want the trapazoid to be
+    leftover = (1-topline_percent_x)*x
+    leftpoint_x = leftover/2
+    rightpoint_x = leftpoint_x + (topline_percent_x)*x
+    point_y = topline_percent_y*y
+
+    """
+    print("point1: (0," + str(y) + ")")
+    print("point2: (" + str(x) + "," + str(y) + ")")
+    print("point3: (" + str(x) + "," + str(y) + ")")
+    print("point4: (0," + str(y) + ")")
+    """
+    shape = np.array([[int(0), int(y)], [int(x), int(y)], [int(rightpoint_x), int(point_y)], [int(leftpoint_x), int(point_y)]])
+
+
 
     #define a numpy array with the dimensions of img, but comprised of zeros
     mask = np.zeros_like(img)
@@ -259,26 +274,31 @@ def find_position_in_lines(img, lines):
         print("!!!!!!!!!!!!!!!!!!!!!!!!!")
         return 3
 
-    # We use slicing operators and np.mean() to find the averages of the 30 previous frames
-    # This makes the lines more stable, and less likely to shift rapidly
-    leftavgSlope = np.mean(leftSlope[-30:])
-    leftavgIntercept = np.mean(leftIntercept[-30:])
+    try:
+        # We use slicing operators and np.mean() to find the averages of the 30 previous frames
+        # This makes the lines more stable, and less likely to shift rapidly
+        leftavgSlope = np.mean(leftSlope[-30:])
+        leftavgIntercept = np.mean(leftIntercept[-30:])
 
-    rightavgSlope = np.mean(rightSlope[-30:])
-    rightavgIntercept = np.mean(rightIntercept[-30:])
+        rightavgSlope = np.mean(rightSlope[-30:])
+        rightavgIntercept = np.mean(rightIntercept[-30:])
 
-    left_line_x1 = int((0.65 * img.shape[0] - leftavgIntercept) / leftavgSlope)
+        left_line_x1 = int((0.65 * img.shape[0] - leftavgIntercept) / leftavgSlope)
 
-    right_line_x1 = int((0.65 * img.shape[0] - rightavgIntercept) / rightavgSlope)
+        right_line_x1 = int((0.65 * img.shape[0] - rightavgIntercept) / rightavgSlope)
 
-    center_line_x = int((img.shape[1] / 2))
+        center_line_x = int((img.shape[1] / 2))
 
-    mid_lane_x = int(((left_line_x1 + right_line_x1) / 2))
+        mid_lane_x = int(((left_line_x1 + right_line_x1) / 2))
 
-    off_center_dist = center_line_x - mid_lane_x
-    # print("off center dist: " + str(off_center_dist))
-    # print("offset: " + str(off_center_dist))
-    #print("Off Center Distance: " + str(off_center_dist))
+        off_center_dist = center_line_x - mid_lane_x
+        # print("off center dist: " + str(off_center_dist))
+        # print("offset: " + str(off_center_dist))
+        #print("Off Center Distance: " + str(off_center_dist))
+    except:
+        return 3
+
+
     if off_center_dist > drift_threshold:
         return 1  # drifting right
     elif off_center_dist < (-1) * drift_threshold:
@@ -347,7 +367,6 @@ def write_images(out_buf, foo):
                 first_time_empty = False
             else:
                 pass
-            #pass
         first_time_empty = True
         processed = out_buf.get()
         mpimg.imsave("processed_images/testimg_"+ str(imgs) + out_ext, processed)
@@ -446,26 +465,29 @@ def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, fil
                 print("No more images")
 
         elif (live):
-            import picamera
-            from picamera.array import PiRGBArray
+            try:
+                import picamera
+                from picamera.array import PiRGBArray
 
-            in_imgs = 0
-            with picamera.PiCamera() as camera:
-                camera.resolution = (640, 480)
-                rawCapture = PiRGBArray(camera)
-                time.sleep(0.1)  # wait for camera to warm up
+                in_imgs = 0
+                with picamera.PiCamera() as camera:
+                    camera.resolution = (640, 480)
+                    rawCapture = PiRGBArray(camera)
+                    time.sleep(0.1)  # wait for camera to warm up
 
-                for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=True):
-                    if in_imgs > NUM_FRAMES:
-                        break
-                    while input_buffers[curr_in_buffer].full():
-                        pass
-                    image = frame.array
-                    input_buffers[curr_in_buffer].put(image)
-                    curr_in_buffer = (curr_in_buffer + 1) % NUM_WORKERS
-                    rawCapture.truncate(0)
-                    print("img " + str(in_imgs))
-                    in_imgs += 1
+                    for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=True):
+                        if in_imgs > NUM_FRAMES:
+                            break
+                        while input_buffers[curr_in_buffer].full():
+                            pass
+                        image = frame.array
+                        input_buffers[curr_in_buffer].put(image)
+                        curr_in_buffer = (curr_in_buffer + 1) % NUM_WORKERS
+                        rawCapture.truncate(0)
+                        print("img " + str(in_imgs))
+                        in_imgs += 1
+            except:
+                print("live feed did not work")
 
 
 
@@ -486,7 +508,7 @@ def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, fil
             # Puts image into buffer and updates current buffer
             #################################################################
             input_buffers[curr_in_buffer].put(image)
-            print("Image in input buffer " + str(imgs))
+            #print("Image in input buffer " + str(imgs))
             imgs += 1
             curr_in_buffer = (curr_in_buffer + 1) % NUM_WORKERS
 
@@ -537,7 +559,7 @@ def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, fil
 # Processes the image and then Enqueues it onto the output
 # buffer. Can be modified to include timing information
 #################################################################
-def processImage(img_buf, out_buf):
+def processImage(img_buf, out_buf, save):
     imgs = 0
     while imgs is not int(NUM_FRAMES / NUM_WORKERS):
         while img_buf.empty():
@@ -545,15 +567,17 @@ def processImage(img_buf, out_buf):
         start = time.time()
         image = img_buf.get()
         #print("get img from buffer time: " + str(time.time()-start))
-        #interest = roi(image)
-        filterimg = color_filter(image)
+        interest = roi(image)
+        filterimg = color_filter(interest)
         #mpimg.imsave("processed_images/testimg_filtered_"+ str(imgs) + out_ext, filterimg)
         canny = cv2.Canny(grayscale(filterimg), 50, 120)
         #mpimg.imsave("processed_images/testimg_canny_"+ str(imgs) + out_ext, canny)
-        #myline = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
+        if save:
+            myline = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
+            weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
+            mpimg.imsave("processed_images/aaa_"+ str(imgs) + "_" + str(os.getpid())+out_ext, weighted_img)
+
         dist_off = hough_lines_2(canny, 1, np.pi / 180, 10, 20, 5)
-        #weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
-        #mpimg.imsave("processed_images/testing_"+ str(imgs) + "_" + str(os.getpid())+out_ext, weighted_img)
 
         while out_buf.full():
             pass
@@ -574,10 +598,11 @@ def processImage(img_buf, out_buf):
 #################################################################
 def main(argv):
     vid = False
-    serial = False
+    save = False
     live = False
+    im = False
     try:
-        opts, args = getopt.getopt(argv, "hvsli:", ["help", "video", "serial", "live", "image="])
+        opts, args = getopt.getopt(argv, "hvslif:", ["help", "video", "save", "live", "image", "filename="])
     except getopt.GetoptError:
         print('lane_detect.py -i <filename> -v')
         sys.exit(2)
@@ -586,15 +611,18 @@ def main(argv):
         if opt == '-h':
             print('lane_detect.py -i <image_filename>')
             sys.exit()
-        elif opt in ("-i", "--image"):
+        elif opt in ("-f", "--filename"):
             filename = arg.strip()
         elif opt in ("-v", "--video"):
             vid = True
-        elif opt in ("-s", "--serial"):
-            serial = True
+        elif opt in ("-s", "--save"):
+            save = True
         elif opt in ("-l", "--live"):
             live = True
             filename = "livefeed"
+        elif opt in ("-i", "--image"):
+            im = True
+            NUM_FRAMES = 1
 
     print("FILENAME: " + filename)
 
@@ -616,8 +644,8 @@ def main(argv):
 
     img_handling_process = Process(target=handle_images, args=(input_img_1, input_img_2,\
                                                             output_img_1, output_img_2, vid, filename, live))
-    img_processing_1_process = Process(target=processImage, args=(input_img_1, output_img_1))
-    img_processing_2_process = Process(target=processImage, args=(input_img_2, output_img_2))
+    img_processing_1_process = Process(target=processImage, args=(input_img_1, output_img_1, save))
+    img_processing_2_process = Process(target=processImage, args=(input_img_2, output_img_2, save))
     #img_processing_3_process = Process(target=processImage, args=(input_img_3, output_img_3))
 
     prof = Profile()
