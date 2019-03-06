@@ -26,7 +26,7 @@ import io
 
 
 NUM_WORKERS = 2
-NUM_FRAMES = 210 #should be multiple of 3
+NUM_FRAMES = 30 #should be multiple of 3
 #################################################################
 # Lists used for draw_lines
 #################################################################
@@ -420,7 +420,7 @@ def get_images(img_buf, vid, filename):
 # input stream. Outputs appropriate values using images fom the
 # output buffer.
 #################################################################
-def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, filename, live):
+def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, filename, live, im):
 
     curr_in_buffer = 0
     curr_out_buffer = 0
@@ -494,7 +494,7 @@ def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, fil
         #################################################################
         # Code to handle single image processing (NUM_FRAMES times for timing)
         #################################################################
-        elif(in_imgs != NUM_FRAMES) :
+        elif(im and in_imgs != NUM_FRAMES) :
             # code to process NUM_FRAMES images
             imgs = 0
             image = mpimg.imread(filename)
@@ -622,7 +622,7 @@ def main(argv):
             filename = "livefeed"
         elif opt in ("-i", "--image"):
             im = True
-            NUM_FRAMES = 1
+            #NUM_FRAMES = 1
 
     print("FILENAME: " + filename)
 
@@ -643,7 +643,7 @@ def main(argv):
     # img_writing_process = Process(target=write_images, args=(out_buf, None))
 
     img_handling_process = Process(target=handle_images, args=(input_img_1, input_img_2,\
-                                                            output_img_1, output_img_2, vid, filename, live))
+                                                            output_img_1, output_img_2, vid, filename, live, im))
     img_processing_1_process = Process(target=processImage, args=(input_img_1, output_img_1, save))
     img_processing_2_process = Process(target=processImage, args=(input_img_2, output_img_2, save))
     #img_processing_3_process = Process(target=processImage, args=(input_img_3, output_img_3))
