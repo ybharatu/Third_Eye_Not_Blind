@@ -469,7 +469,7 @@ def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, fil
                 import picamera
                 from picamera.array import PiRGBArray
 
-                in_imgs = 0
+                imgs = 0
                 with picamera.PiCamera() as camera:
                     camera.resolution = (640, 480)
                     rawCapture = PiRGBArray(camera)
@@ -484,8 +484,9 @@ def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, fil
                         input_buffers[curr_in_buffer].put(image)
                         curr_in_buffer = (curr_in_buffer + 1) % NUM_WORKERS
                         rawCapture.truncate(0)
-                        print("img " + str(in_imgs))
-                        in_imgs += 1
+                        print("img " + str(imgs))
+                        time.sleep(0.5)
+                        imgs += 1
             except:
                 print("live feed did not work")
 
