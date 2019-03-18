@@ -166,7 +166,7 @@ def draw_lines(img, lines, thickness=5):
     middleDynColor = [255, 255, 255]
     drift_threshold = 50
     img_mid_point = img.shape[1] / 2
-
+    # print(lines)
     # this is used to filter out the outlying lines that can affect the average
     # We then use the slope we determined to find the y-intercept of the filtered lines by solving for b in y=mx+b
     for line in lines:
@@ -250,7 +250,12 @@ def find_position_in_lines(img, lines):
     # We then use the slope we determined to find the y-intercept of the filtered lines by solving for b in y=mx+b
     for line in lines:
         for x1, y1, x2, y2 in line:
-            slope = (y1 - y2) / (x1 - x2)
+            denom = x1 - x2
+            if denom == 0:
+                print("divided by zero in find_pos_in_lines")
+                return 3
+            slope = (y1 - y2) / denom
+
             #print("slope = " + str(slope))
             if slope > 0.2:
                 if x1 > img_mid_point:
@@ -420,7 +425,7 @@ def get_images(img_buf, vid, filename):
 # input stream. Outputs appropriate values using images fom the
 # output buffer.
 #################################################################
-def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, filename, live, im):
+def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, filename, live, im, save):
 
     curr_in_buffer = 0
     curr_out_buffer = 0
@@ -437,7 +442,7 @@ def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, fil
     # same image is processed NUM_FRAMES times in order to provide
     # meaningful timing information
     #################################################################
-    while(in_imgs != NUM_FRAMES or out_imgs != NUM_FRAMES):
+    while(in_imgs < NUM_FRAMES or out_imgs < NUM_FRAMES):
         #################################################################
         # Code to handle getting images from a source (either a video
         # or an image
@@ -464,19 +469,18 @@ def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, fil
             else:
                 print("No more images")
 
-        elif (live):
+        elif (live and in_imgs < NUM_FRAMES):
             try:
                 import picamera
                 from picamera.array import PiRGBArray
 
-                imgs = 0
                 with picamera.PiCamera() as camera:
                     camera.resolution = (640, 480)
                     rawCapture = PiRGBArray(camera)
                     time.sleep(0.1)  # wait for camera to warm up
 
                     for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=True):
-                        if in_imgs > NUM_FRAMES:
+                        if in_imgs >= NUM_FRAMES:
                             break
                         while input_buffers[curr_in_buffer].full():
                             pass
@@ -484,9 +488,11 @@ def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, fil
                         input_buffers[curr_in_buffer].put(image)
                         curr_in_buffer = (curr_in_buffer + 1) % NUM_WORKERS
                         rawCapture.truncate(0)
-                        print("img " + str(imgs))
+                        print("img " + str(in_imgs) + " put into input buffer")
+                        if(save):
+                            mpimg.imsave("source_images/live_"+ str(in_imgs) + out_ext, image)
                         time.sleep(0.5)
-                        imgs += 1
+                        in_imgs += 1
             except:
                 print("live feed did not work")
 
@@ -519,6 +525,7 @@ def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, fil
         # values
         #################################################################
         if(output_buffers[curr_out_buffer].empty()):
+            print("output buffer empty")
             continue
 
         #################################################################
@@ -527,6 +534,8 @@ def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, fil
         #################################################################
         drift_value = output_buffers[curr_out_buffer].get()
         curr_out_buffer = (curr_out_buffer + 1) % NUM_WORKERS
+        
+        print("img " + str(out_imgs) + " taken off output buffer")
         #print("Drift Value from output buffer = " + str(drift_value) + ", PID: " + str(os.getpid()))
         if(drift_value == -1):
             right_drift_cnt = 0
@@ -560,7 +569,7 @@ def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, fil
 # Processes the image and then Enqueues it onto the output
 # buffer. Can be modified to include timing information
 #################################################################
-def processImage(img_buf, out_buf, save):
+def processImage(img_buf, out_buf, save, which_worker):
     imgs = 0
     while imgs is not int(NUM_FRAMES / NUM_WORKERS):
         while img_buf.empty():
@@ -576,7 +585,7 @@ def processImage(img_buf, out_buf, save):
         if save:
             myline = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
             weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
-            mpimg.imsave("processed_images/aaa_"+ str(imgs) + "_" + str(os.getpid())+out_ext, weighted_img)
+            mpimg.imsave("processed_images/aaa_"+ str(imgs) + "_worker_" + str(which_worker)+out_ext, weighted_img)
 
         dist_off = hough_lines_2(canny, 1, np.pi / 180, 10, 20, 5)
 
@@ -644,9 +653,9 @@ def main(argv):
     # img_writing_process = Process(target=write_images, args=(out_buf, None))
 
     img_handling_process = Process(target=handle_images, args=(input_img_1, input_img_2,\
-                                                            output_img_1, output_img_2, vid, filename, live, im))
-    img_processing_1_process = Process(target=processImage, args=(input_img_1, output_img_1, save))
-    img_processing_2_process = Process(target=processImage, args=(input_img_2, output_img_2, save))
+                                                            output_img_1, output_img_2, vid, filename, live, im, save))
+    img_processing_1_process = Process(target=processImage, args=(input_img_1, output_img_1, save, 0))
+    img_processing_2_process = Process(target=processImage, args=(input_img_2, output_img_2, save, 1))
     #img_processing_3_process = Process(target=processImage, args=(input_img_3, output_img_3))
 
     prof = Profile()
