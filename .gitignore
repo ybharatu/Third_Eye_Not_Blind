@@ -1,11 +1,11 @@
 .idea*
-processed_images/
+processed_images/*
 .DS*
 mystats.stats
 mystats_output.txt
 =======
 test_images/*
-
+source_images/*
 
 *.s#?
 *.b#?
