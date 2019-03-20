@@ -64,6 +64,13 @@
 #include "nrf.h"
 
 #include "nrf_drv_gpiote.h"
+#include "nrf_saadc.h"
+#include "nrfx_saadc.h"
+
+#include "nrf_drv_saadc.h"
+#include "app_util_platform.h"
+//#include "nrf_pwr_mgmt.h"
+
 
 #define GRAY 0xC618
 //#define BLUE 255
@@ -73,23 +80,24 @@
 #define BUFFER_SIZE     60
 #define LEFT 1
 #define RIGHT 2
+#define SENSE_PIN 3
 
 #define TEST_STRING "Nordic"
-
-#ifdef ECHO_PIN
-    #define PIN_IN ECHO_PIN
+#ifdef LVEZ4_AN_PIN
+    #define PIN_IN LVEZ4_AN_PIN
 #endif
 #ifndef PIN_IN
     #error "Please indicate input pin"
 #endif
 
-
-#ifdef BSP_LED_0
-    #define PIN_OUT BSP_LED_0
+#ifdef LVEZ4_AN_PIN
+    #define PIN_OUT LVEZ4_AN_PIN
 #endif
 #ifndef PIN_OUT
     #error "Please indicate output pin"
 #endif
+
+#define SAMPLES_IN_BUFFER 1 
 
 static uint8_t       m_tx_buf[] = TEST_STRING;           /**< TX buffer. */
 static uint8_t       m_rx_buf[sizeof(TEST_STRING) + 1];    /**< RX buffer. */
@@ -103,6 +111,9 @@ extern nrf_lcd_t nrf_lcd_ili9341;
 nrf_lcd_t* lcd = &nrf_lcd_ili9341;
 static const nrf_gfx_font_desc_t * p_font = &orkney_24ptFontInfo;
 
+const nrf_drv_timer_t TIMER_LED = NRF_DRV_TIMER_INSTANCE(1);
+uint32_t seconds = 0;
+
 uint8_t i = 0;
 uint8_t rect_status = 0;
 uint8_t object_close = 0;
@@ -110,6 +121,11 @@ uint8_t draw_right = 0;
 uint8_t draw_left = 0;
 uint8_t draw_text = 0;
 uint8_t curr_drift = 0;
+uint32_t distance = 0;
+uint32_t atd_result = 0;
+nrf_saadc_value_t p_value;
+static nrf_saadc_value_t m_buffer[SAMPLES_IN_BUFFER];
+//static nrf_saadc_value_t     m_buffer_pool[2][SAMPLES_IN_BUFFER];
 
 static uint8_t       drifting_values[BUFFER_SIZE] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2};
 //static uint8_t       drifting_values[BUFFER_SIZE] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2};
@@ -119,6 +135,7 @@ nrf_gfx_rect_t test_rect = NRF_GFX_RECT(10,100,20,150);
 nrfx_timer_t timer_us = NRFX_TIMER_INSTANCE(1);
 
 nrfx_timer_event_handler_t hc_sr04_measure(void);
+nrfx_timer_event_handler_t LVEZ4_measure(void);
 
 static void screen_clear(void)
 { 
@@ -136,52 +153,42 @@ void pwm_ready_callback(uint32_t pwm_id)    // PWM callback function
 
 void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
-    if(nrf_gpio_pin_read(ECHO_PIN)){
-        NRF_TIMER2->TASKS_START = 1;
-    }
-    if(!nrf_gpio_pin_read(ECHO_PIN)){
-        NRF_TIMER2->TASKS_STOP = 1;
-        NRF_TIMER2->TASKS_CAPTURE[2] = 1;
-        int32_t ticks = NRF_TIMER2->CC[2];
-        NRF_TIMER2->TASKS_CLEAR = 1;
-        int32_t distance = ticks * 62.5 * 0.000343 / 2; // dist = ticks * (62.5 ns) * (.000340 mm/ns); 
-    //    err_code = ble_nus_data_send(&m_nus, message, &length, m_conn_handle);
-    //    draw_text = 0;
-    //    draw_right = 0;
-    //    draw_left = 0;
-        if(distance < 300){
-          if(text != close){
-              draw_text = 1;       
-          }
-          text = close;
-          object_close = 1;
-        }else{
-          if(text != far){
-              draw_text = 1;
-          }
-          text = far;
-          object_close = 0;
-        }
+//    if(nrf_gpio_pin_read(ECHO_PIN)){
+//        NRF_TIMER2->TASKS_START = 1;
+//    }
 
-        // EMULATING RASPBERRY PI
-        if(drifting_values[i] == 1 && rect_status != 1){
-          draw_right = 1;
-          draw_left = 0;
-          rect_status = 1;
-        }
-        else if(drifting_values[i] == 2 && rect_status != 2){
-          draw_right = 0;
-          draw_left = 1;
-          rect_status = 2;
-        }
-        else if(drifting_values[i] == 0){
-          draw_right = 0;
-          draw_left = 0;
-          rect_status = 0;
-        }
-        i = (i + 1) % BUFFER_SIZE;
-        nrfx_timer_clear(&timer_us);
-   }
+//    if(distance < 300){
+//      if(text != close){
+//          draw_text = 1;       
+//      }
+//      text = close;
+//      object_close = 1;
+//    }else{
+//      if(text != far){
+//          draw_text = 1;
+//      }
+//      text = far;
+//      object_close = 0;
+//    }
+//
+//    // EMULATING RASPBERRY PI
+//    if(drifting_values[i] == 1 && rect_status != 1){
+//      draw_right = 1;
+//      draw_left = 0;
+//      rect_status = 1;
+//    }
+//    else if(drifting_values[i] == 2 && rect_status != 2){
+//      draw_right = 0;
+//      draw_left = 1;
+//      rect_status = 2;
+//    }
+//    else if(drifting_values[i] == 0){
+//      draw_right = 0;
+//      draw_left = 0;
+//      rect_status = 0;
+//    }
+//    i = (i + 1) % BUFFER_SIZE;
+//    nrfx_timer_clear(&timer_us);
    
 }
 
@@ -211,15 +218,17 @@ static void gpio_init(void)
     nrf_drv_gpiote_in_config_t in_config = GPIOTE_CONFIG_IN_SENSE_TOGGLE(true);
     in_config.pull = NRF_GPIO_PIN_PULLUP;
 
-    err_code = nrf_drv_gpiote_in_init(PIN_IN, &in_config, in_pin_handler);
-    APP_ERROR_CHECK(err_code);
+//    err_code = nrf_drv_gpiote_in_init(PIN_IN, &in_config, in_pin_handler);
+//    APP_ERROR_CHECK(err_code);
 
     err_code = nrf_drv_gpiote_in_init(DRIFT_LEFT_PIN, &in_config, drifting_gpio_handler);
     APP_ERROR_CHECK(err_code);
     err_code = nrf_drv_gpiote_in_init(DRIFT_RIGHT_PIN, &in_config, drifting_gpio_handler);
     APP_ERROR_CHECK(err_code);
 
-    nrf_drv_gpiote_in_event_enable(PIN_IN, true);
+    //nrf_gpio_cfg_input(PIN_IN, NRF_GPIO_PIN_NOPULL);
+
+    //nrf_drv_gpiote_in_event_enable(PIN_IN, true);
 }
 
 void hc_sr04_init(void){
@@ -233,15 +242,103 @@ void hc_sr04_init(void){
 
 }
 
-nrfx_timer_event_handler_t hc_sr04_measure(void){
-    nrf_gpio_pin_set(TRIGGER_PIN);
-    nrf_delay_us(10);
-    nrf_gpio_pin_clear(TRIGGER_PIN);
+void LVEZ4_init(void){
+	NRF_TIMER2->TASKS_STOP = 1;
+	NRF_TIMER2->MODE = TIMER_MODE_MODE_Timer;
+	NRF_TIMER2->PRESCALER = 0;
+	NRF_TIMER2->BITMODE = 3;
+	NRF_TIMER2->TASKS_CLEAR = 1;
+}
 
+nrfx_timer_event_handler_t hc_sr04_measure(void){
+      
 //    while(!nrf_gpio_pin_read(ECHO_PIN)){}
 //    NRF_TIMER2->TASKS_START = 1;
 //    while(nrf_gpio_pin_read(ECHO_PIN)){}
 //    NRF_TIMER2->TASKS_STOP = 1;
+}
+
+void saadc_callback(nrf_drv_saadc_evt_t const * p_event)
+{
+    if (p_event->type == NRF_DRV_SAADC_EVT_DONE)
+    {
+        ret_code_t err_code;
+
+        err_code = nrf_drv_saadc_buffer_convert(p_event->data.done.p_buffer, SAMPLES_IN_BUFFER);
+        APP_ERROR_CHECK(err_code);
+        p_value = p_event->data.done.p_buffer[0];
+        distance = p_value;
+        //distance = p_value / 256;
+        //distance = (1.0 / ((double)distance)) * ((double) VCC / 512.0);
+        NRF_LOG_INFO("%d\r\n", p_event->data.done.p_buffer[0]);
+    }
+}
+
+void saadc_init(void)
+{
+    ret_code_t err_code;
+    nrf_saadc_channel_config_t channel_config 
+        = NRF_DRV_SAADC_DEFAULT_CHANNEL_CONFIG_SE(NRF_SAADC_INPUT_AIN1);
+    
+    channel_config.gain = NRF_SAADC_GAIN1;
+
+    err_code = nrf_drv_saadc_init(NULL, saadc_callback);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = nrf_drv_saadc_channel_init(0, &channel_config);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = nrf_drv_saadc_buffer_convert(m_buffer, SAMPLES_IN_BUFFER);
+    APP_ERROR_CHECK(err_code);
+}
+
+
+
+nrfx_timer_event_handler_t LVEZ4_measure(void){
+    int prev_p_value = 0;
+    int flag = 0;
+//    nrf_drv_saadc_sample();
+//    nrf_drv_saadc_sample_convert(0,&p_value);
+     
+    if(p_value != prev_p_value){
+      prev_p_value = p_value;
+      flag = 1;
+    }
+    prev_p_value = p_value;
+//    distance = (1.0 / ((double)p_value)) * ((double) VCC / 512.0);
+
+    if(distance < 300){
+      if(text != close){
+          draw_text = 1;       
+      }
+      text = close;
+      object_close = 1;
+    }else{
+      if(text != far){
+          draw_text = 1;
+      }
+      text = far;
+      object_close = 0;
+    }
+
+    // EMULATING RASPBERRY PI
+    if(drifting_values[i] == 1 && rect_status != 1){
+      draw_right = 1;
+      draw_left = 0;
+      rect_status = 1;
+    }
+    else if(drifting_values[i] == 2 && rect_status != 2){
+      draw_right = 0;
+      draw_left = 1;
+      rect_status = 2;
+    }
+    else if(drifting_values[i] == 0){
+      draw_right = 0;
+      draw_left = 0;
+      rect_status = 0;
+    }
+    i = (i + 1) % BUFFER_SIZE;
+    nrfx_timer_clear(&timer_us);
    
     return;
 }
@@ -255,9 +352,7 @@ void simple_timer_init(void){
     .p_context = NULL
     };
 
-
-
-    nrfx_timer_init(&timer_us, &timer_config, hc_sr04_measure);
+    nrfx_timer_init(&timer_us, &timer_config, LVEZ4_measure);
     nrfx_timer_compare(&timer_us, 0, 1563, true);
 
 }
@@ -272,10 +367,13 @@ int main(void)
     NRF_LOG_DEFAULT_BACKENDS_INIT();
     
     APP_ERROR_CHECK(nrf_gfx_init(lcd));
-    hc_sr04_init();
+    //hc_sr04_init();
+    LVEZ4_init();
     simple_timer_init();
-    gpio_init();
+    //gpio_init();
     screen_clear();
+    saadc_init();
+
     
 
     nrfx_timer_enable(&timer_us);
@@ -284,6 +382,10 @@ int main(void)
 
 
     NRF_TIMER1->TASKS_START = 1;
+
+    //////////////////////////////////////////////////////////////////////////////
+    // TO DO: Create PWM Init() function
+    //////////////////////////////////////////////////////////////////////////////
   
     ret_code_t err_code;
     
@@ -300,8 +402,10 @@ int main(void)
     
     nrf_gfx_rect_t wipe_text = NRF_GFX_RECT(5, nrf_gfx_height_get(lcd) - 50, nrf_gfx_width_get(lcd), 40);
     uint32_t value;
+
     while (true)
     {
+        nrf_drv_saadc_sample();
         if(object_close){
           for (uint8_t i = 0; i < 40; ++i)
           {
@@ -346,56 +450,7 @@ int main(void)
         else if(rect_status == 0){
           nrf_gfx_rect_draw(lcd, &test_rect, 10, GRAY, true);
         }
+        nrf_delay_ms(50);
     }
-//    while (1)
-//    {
-////      else{
-////         nrf_gfx_rect_draw(lcd, &test_rect, 10, GRAY, true);
-////      }
-//
-////      nrf_delay_ms(500);
-//      
-////      if(nrfx_timer_is_enabled(&timer_us))
-////      {
-////        screen_clear();
-////        nrf_gfx_rect_draw(lcd,&test_rect,10,255,true);
-////      }else{
-////         screen_clear();
-////         nrf_gfx_rect_draw(lcd,&test_rect,10,0,true);
-////      }
-//      //nrf_gfx_rect_draw(lcd,&test_rect,10,255,true);
-//      //test_rect.width = 50;
-//      //test_rect.height = 50;
-//      //screen_clear();
-//      //nrf_gfx_rect_draw(lcd,&test_rect,10,RED,true);
-//      //_SEV();
-//      //_WFE();
-//    }
-//    nrf_drv_spi_config_t spi_config = NRF_DRV_SPI_DEFAULT_CONFIG;
-//    spi_config.ss_pin   = SPI_SS_PIN;
-//    spi_config.miso_pin = SPI_MISO_PIN;
-//    spi_config.mosi_pin = SPI_MOSI_PIN;
-//    spi_config.sck_pin  = SPI_SCK_PIN;
-//    APP_ERROR_CHECK(nrf_drv_spi_init(&spi, &spi_config, spi_event_handler, NULL));
-//
-//    NRF_LOG_INFO("SPI example started.");
-//
-//    while (1)
-//    {
-//        // Reset rx buffer and transfer done flag
-//        memset(m_rx_buf, 0, m_length);
-//        spi_xfer_done = false;
-//
-//        APP_ERROR_CHECK(nrf_drv_spi_transfer(&spi, m_tx_buf, m_length, m_rx_buf, m_length));
-//
-//        while (!spi_xfer_done)
-//        {
-//            __WFE();
-//        }
-//
-//        NRF_LOG_FLUSH();
-//
-//        bsp_board_led_invert(BSP_BOARD_LED_0);
-//        nrf_delay_ms(200);
-//    }
+
 }
