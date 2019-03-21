@@ -1,0 +1,118 @@
+FILENAME: livefeed
+img 0 put into input buffer
+not enough left slope lines
+!!!!!!!!!!!!!!!!!!!!!!!!!
+not enough left slope lines
+!!!!!!!!!!!!!!!!!!!!!!!!!
+img 0 taken off output buffer
+Could not detect lines
+Not Drifting
+img 1 put into input buffer
+not enough left slope lines
+!!!!!!!!!!!!!!!!!!!!!!!!!
+img 1 taken off output buffer
+Could not detect lines
+Not Drifting
+img 2 put into input buffer
+not enough right slope lines
+!!!!!!!!!!!!!!!!!!!!!!!!!
+not enough right slope lines
+!!!!!!!!!!!!!!!!!!!!!!!!!
+img 2 taken off output buffer
+Could not detect lines
+Not Drifting
+img 3 put into input buffer
+img 3 taken off output buffer
+Could not detect lines
+Not Drifting
+img 4 put into input buffer
+img 4 taken off output buffer
+Drifting Left!!
+img 5 put into input buffer
+img 5 taken off output buffer
+Drifting Right!!
+img 6 put into input buffer
+img 6 taken off output buffer
+Drifting Left!!
+img 7 put into input buffer
+img 7 taken off output buffer
+Drifting Right!!
+img 8 put into input buffer
+img 8 taken off output buffer
+Drifting Left!!
+img 9 put into input buffer
+img 9 taken off output buffer
+Drifting Right!!
+img 10 put into input buffer
+img 10 taken off output buffer
+Not Drifting
+img 11 put into input buffer
+img 11 taken off output buffer
+Not Drifting
+img 12 put into input buffer
+img 12 taken off output buffer
+Not Drifting
+img 13 put into input buffer
+img 13 taken off output buffer
+Not Drifting
+img 14 put into input buffer
+img 14 taken off output buffer
+Drifting Left!!
+img 15 put into input buffer
+img 15 taken off output buffer
+Could not detect lines
+Drifting Left!!
+img 16 put into input buffer
+img 16 taken off output buffer
+Drifting Left!!
+img 17 put into input buffer
+img 17 taken off output buffer
+Not Drifting
+img 18 put into input buffer
+img 18 taken off output buffer
+Drifting Left!!
+img 19 put into input buffer
+img 19 taken off output buffer
+Drifting Left!!
+img 20 put into input buffer
+img 20 taken off output buffer
+Not Drifting
+img 21 put into input buffer
+img 21 taken off output buffer
+Could not detect lines
+Not Drifting
+img 22 put into input buffer
+img 22 taken off output buffer
+Could not detect lines
+Not Drifting
+img 23 put into input buffer
+img 23 taken off output buffer
+Could not detect lines
+Not Drifting
+img 24 put into input buffer
+img 24 taken off output buffer
+Could not detect lines
+Not Drifting
+img 25 put into input buffer
+img 25 taken off output buffer
+Could not detect lines
+Not Drifting
+img 26 put into input buffer
+img 26 taken off output buffer
+Drifting Left!!
+img 27 put into input buffer
+img 27 taken off output buffer
+Could not detect lines
+Drifting Left!!
+img 28 put into input buffer
+img 28 taken off output buffer
+Drifting Left!!
+img 29 put into input buffer
+img 29 taken off output buffer
+Not Drifting
+output buffer empty
+Finished Process 1
+Finished Process 2
+Finished Process 3
+Total Time: 27.671183586120605 sec
+FPS: 1.0841603470495382 sec

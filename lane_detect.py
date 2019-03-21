@@ -444,7 +444,7 @@ def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, fil
     out_imgs = 0
     left_drift_cnt = 0
     right_drift_cnt = 0
-    num_drifts_thresh = 2
+    num_drifts_thresh = 1
     #################################################################
     # Code to handle getting images and placing them into buffer.
     # Could be either from a video (indicated by vid = True) or an
