@@ -23,6 +23,7 @@ from pstats import Stats
 # import picamera
 # from picamera.array import PiRGBArray
 import io
+import subprocess
 
 
 NUM_WORKERS = 2
@@ -171,7 +172,12 @@ def draw_lines(img, lines, thickness=5):
     # We then use the slope we determined to find the y-intercept of the filtered lines by solving for b in y=mx+b
     for line in lines:
         for x1, y1, x2, y2 in line:
-            slope = (y1 - y2) / (x1 - x2)
+            denom = x1 - x2
+            if denom == 0:
+                #print("divided by zero in draw_lines")
+                continue
+            slope = (y1 - y2) / denom
+            
             if slope > 0.3:
                 if x1 > img_mid_point:
                     yintercept = y2 - (slope * x2)
@@ -189,11 +195,13 @@ def draw_lines(img, lines, thickness=5):
     if len(leftSlope) == 0:
         print("not enough left slope lines")
         print("!!!!!!!!!!!!!!!!!!!!!!!!!")
-        sys.exit(1)
+        #sys.exit(1)
+        return
     elif len(rightSlope) == 0:
         print("not enough right slope lines")
         print("!!!!!!!!!!!!!!!!!!!!!!!!!")
-        sys.exit(1)
+        #sys.exit(1)
+        return
 
                     # We use slicing operators and np.mean() to find the averages of the 30 previous frames
     # This makes the lines more stable, and less likely to shift rapidly
@@ -243,7 +251,7 @@ def draw_lines(img, lines, thickness=5):
 #################################################################
 def find_position_in_lines(img, lines):
     global rightSlope, leftSlope, rightIntercept, leftIntercept
-    drift_threshold = 50
+    drift_threshold = 45
     img_mid_point = img.shape[1]/2
 
     # this is used to filter out the outlying lines that can affect the average
@@ -252,7 +260,7 @@ def find_position_in_lines(img, lines):
         for x1, y1, x2, y2 in line:
             denom = x1 - x2
             if denom == 0:
-                print("divided by zero in find_pos_in_lines")
+                #print("divided by zero in find_pos_in_lines")
                 return 3
             slope = (y1 - y2) / denom
 
@@ -324,7 +332,8 @@ def hough_lines(img, rho, theta, threshold, min_line_len, max_line_gap):
     """
     lines = cv2.HoughLinesP(img, rho, theta, threshold, np.array([]), minLineLength=min_line_len, maxLineGap=max_line_gap)
     line_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
-    draw_lines(line_img, lines)
+    if (lines is not None):
+        draw_lines(line_img, lines)
     return line_img
 
 def hough_lines_2(img, rho, theta, threshold, min_line_len, max_line_gap):
@@ -435,6 +444,7 @@ def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, fil
     out_imgs = 0
     left_drift_cnt = 0
     right_drift_cnt = 0
+    num_drifts_thresh = 2
     #################################################################
     # Code to handle getting images and placing them into buffer.
     # Could be either from a video (indicated by vid = True) or an
@@ -470,20 +480,20 @@ def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, fil
                 print("No more images")
 
         elif (live and in_imgs < NUM_FRAMES):
-            try:
+            #try:
                 import picamera
                 from picamera.array import PiRGBArray
-
+                
                 with picamera.PiCamera() as camera:
                     camera.resolution = (640, 480)
                     rawCapture = PiRGBArray(camera)
                     time.sleep(0.1)  # wait for camera to warm up
 
-                    for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=True):
+                    for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=True):  #final version should have this for loop as outer for loop
                         if in_imgs >= NUM_FRAMES:
                             break
                         while input_buffers[curr_in_buffer].full():
-                            pass
+                            break
                         image = frame.array
                         input_buffers[curr_in_buffer].put(image)
                         curr_in_buffer = (curr_in_buffer + 1) % NUM_WORKERS
@@ -491,10 +501,47 @@ def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, fil
                         print("img " + str(in_imgs) + " put into input buffer")
                         if(save):
                             mpimg.imsave("source_images/live_"+ str(in_imgs) + out_ext, image)
+                            ih = subprocess.Popen(["feh", "source_images/live_"+ str(in_imgs) + out_ext])
+                            
                         time.sleep(0.5)
                         in_imgs += 1
-            except:
-                print("live feed did not work")
+                        
+                        #################################################################
+                        # OUTPUT LOGIC copied here
+                        #################################################################
+                        drift_value = output_buffers[curr_out_buffer].get()
+                        curr_out_buffer = (curr_out_buffer + 1) % NUM_WORKERS
+                        
+                        print("img " + str(out_imgs) + " taken off output buffer")
+                        #print("Drift Value from output buffer = " + str(drift_value) + ", PID: " + str(os.getpid()))
+                        if(drift_value == -1):
+                            right_drift_cnt = 0
+                            left_drift_cnt += 1
+                        elif(drift_value == 1):
+                            right_drift_cnt += 1
+                            left_drift_cnt = 0
+                        elif (drift_value == 0):
+                            right_drift_cnt = 0
+                            left_drift_cnt = 0
+                        elif (drift_value == 3):
+                            print("Could not detect lines")
+                        else:
+                            print("Unexpected Value Obtained in Output buffer")
+                        out_imgs += 1
+                        # Note: Need to tell micro that the system is drifting
+                        if(left_drift_cnt >= num_drifts_thresh):
+                            print("Drifting Left!!")
+                        elif(right_drift_cnt >= num_drifts_thresh):
+                            print("Drifting Right!!")
+                        else:
+                            print("Not Drifting")
+                        if (save):
+                            ih.kill()
+                        
+            #except:
+            #    print("live feed did not work")
+            #    sys.exit(1)
+                
 
 
 
@@ -554,9 +601,9 @@ def handle_images(input_img_1, input_img_2, output_img_1, output_img_2, vid, fil
         #################################################################
         # Note: Need to tell micro that the system is drifting
         #################################################################
-        if(left_drift_cnt >= 3):
+        if(left_drift_cnt >= num_drifts_thresh):
             print("Drifting Left!!")
-        elif(right_drift_cnt >= 3):
+        elif(right_drift_cnt >= num_drifts_thresh):
             print("Drifting Right!!")
         else:
             #print("Not Drifting " + "left_cnt: " + str(left_drift_cnt) + " right_cnt: " + str(right_drift_cnt))
