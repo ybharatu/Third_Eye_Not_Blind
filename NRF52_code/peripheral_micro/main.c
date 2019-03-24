@@ -70,6 +70,7 @@
 #include "nrf_saadc.h"
 #include "nrfx_saadc.h"
 #include "nrf_drv_saadc.h"
+#include "nrfx_timer.h"
 
 #define CENTRAL_SCANNING_LED            7//BSP_BOARD_LED_0                     /**< Scanning LED will be on when the device is scanning. */
 #define CENTRAL_CONNECTED_LED           12//BSP_BOARD_LED_1                     /**< Connected LED will be on when the device is connected. */
@@ -90,20 +91,6 @@
 #define APP_BLE_CONN_CFG_TAG            1                                   /**< A tag identifying the SoftDevice BLE configuration. */
 #define APP_BLE_OBSERVER_PRIO           3                                   /**< Application's BLE observer priority. You shouldn't need to modify this value. */
 
-#ifdef LVEZ4_AN_PIN
-    #define PIN_IN LVEZ4_AN_PIN
-#endif
-#ifndef PIN_IN
-    #error "Please indicate input pin"
-#endif
-
-#ifdef LVEZ4_AN_PIN
-    #define PIN_OUT LVEZ4_AN_PIN
-#endif
-#ifndef PIN_OUT
-    #error "Please indicate output pin"
-#endif
-
 #define SAMPLES_IN_BUFFER 1 
 
 NRF_BLE_SCAN_DEF(m_scan);                                       /**< Scanning module instance. */
@@ -117,6 +104,8 @@ uint32_t distance = 0;
 uint32_t atd_result = 0;
 nrf_saadc_value_t p_value;
 static nrf_saadc_value_t m_buffer[SAMPLES_IN_BUFFER];
+
+nrfx_timer_t timer_us = NRFX_TIMER_INSTANCE(1);
 
 /**@brief Function to handle asserts in the SoftDevice.
  *
@@ -150,39 +139,6 @@ static void leds_init(void)
     nrf_gpio_pin_write(CENTRAL_SCANNING_LED,1);
 }
 
-void saadc_callback(nrf_drv_saadc_evt_t const * p_event)
-{
-    if (p_event->type == NRF_DRV_SAADC_EVT_DONE)
-    {
-        ret_code_t err_code;
-
-        err_code = nrf_drv_saadc_buffer_convert(p_event->data.done.p_buffer, SAMPLES_IN_BUFFER);
-        APP_ERROR_CHECK(err_code);
-        p_value = p_event->data.done.p_buffer[0];
-        distance = p_value;
-        //distance = p_value / 256;
-        //distance = (1.0 / ((double)distance)) * ((double) VCC / 512.0);
-        NRF_LOG_INFO("%d\r\n", p_event->data.done.p_buffer[0]);
-    }
-}
-
-void saadc_init(void)
-{
-    ret_code_t err_code;
-    nrf_saadc_channel_config_t channel_config 
-        = NRF_DRV_SAADC_DEFAULT_CHANNEL_CONFIG_SE(NRF_SAADC_INPUT_AIN1);
-    
-    channel_config.gain = NRF_SAADC_GAIN1;
-
-    err_code = nrf_drv_saadc_init(NULL, saadc_callback);
-    APP_ERROR_CHECK(err_code);
-
-    err_code = nrf_drv_saadc_channel_init(0, &channel_config);
-    APP_ERROR_CHECK(err_code);
-
-    err_code = nrf_drv_saadc_buffer_convert(m_buffer, SAMPLES_IN_BUFFER);
-    APP_ERROR_CHECK(err_code);
-}
 /**@brief Function to start scanning.
  */
 static void scan_start(void)
@@ -542,11 +498,95 @@ static void idle_state_handle(void)
     nrf_pwr_mgmt_run();
 }
 
+void saadc_callback(nrf_drv_saadc_evt_t const * p_event)
+{
+    if (p_event->type == NRF_DRV_SAADC_EVT_DONE)
+    {
+        ret_code_t err_code;
+
+        err_code = nrf_drv_saadc_buffer_convert(p_event->data.done.p_buffer, SAMPLES_IN_BUFFER);
+        APP_ERROR_CHECK(err_code);
+        p_value = p_event->data.done.p_buffer[0];
+        distance = p_value;
+        distance = distance / 1024;
+        distance = distance * (.6 / (1.0/6));
+        //distance = p_value / 256;
+        //distance = (1.0 / ((double)distance)) * ((double) VCC / 512.0);
+        //NRF_LOG_INFO("%d\r\n", p_event->data.done.p_buffer[0]);
+    }
+}
+
+void saadc_init(void)
+{
+    ret_code_t err_code;
+    nrf_saadc_channel_config_t channel_config 
+        = NRF_DRV_SAADC_DEFAULT_CHANNEL_CONFIG_SE(NRF_SAADC_INPUT_AIN6);
+    
+    //channel_config.gain = NRF_SAADC_GAIN1;
+
+    err_code = nrf_drv_saadc_init(NULL, saadc_callback);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = nrf_drv_saadc_channel_init(0, &channel_config);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = nrf_drv_saadc_buffer_convert(m_buffer, SAMPLES_IN_BUFFER);
+    APP_ERROR_CHECK(err_code);
+}
+
+nrfx_timer_event_handler_t LVEZ4_measure(void){
+    ret_code_t err_code;
+    /************************************************
+    * If Object is close, send 1 to main micro
+    ************************************************/
+    if(p_value < 60){
+      err_code = ble_lbs_led_status_send(&m_ble_lbs_c, 1);
+      if (err_code != NRF_SUCCESS &&
+          err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
+          err_code != NRF_ERROR_INVALID_STATE)
+      {
+          APP_ERROR_CHECK(err_code);
+      }
+    }
+
+    /************************************************
+    * If Object is far, send 0 to main micro
+    ************************************************/
+    else{
+      err_code = ble_lbs_led_status_send(&m_ble_lbs_c, 0);
+      if (err_code != NRF_SUCCESS &&
+          err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
+          err_code != NRF_ERROR_INVALID_STATE)
+      {
+          APP_ERROR_CHECK(err_code);
+      }
+    }
+
+    nrfx_timer_clear(&timer_us);
+   
+    return;
+}
+
+void simple_timer_init(void){
+    const nrfx_timer_config_t timer_config = {
+    .frequency = NRF_TIMER_FREQ_31250Hz,
+    .bit_width = NRF_TIMER_BIT_WIDTH_24,
+    .interrupt_priority = 2,
+    .mode = NRF_TIMER_MODE_TIMER,
+    .p_context = NULL
+    };
+
+    nrfx_timer_init(&timer_us, &timer_config, LVEZ4_measure);
+    nrfx_timer_compare(&timer_us, 0, 1563, true);
+
+}
+
 
 int main(void)
 {
     ret_code_t err_code;
     int send_bit = 0;
+    int i = 0;
     // Initialize.
     log_init();
     timer_init();
@@ -558,7 +598,10 @@ int main(void)
     gatt_init();
     db_discovery_init();
     lbs_c_init();
-    //saadc_init();
+    saadc_init();
+    simple_timer_init();
+
+    nrfx_timer_enable(&timer_us);
 
     // Start execution.
     NRF_LOG_INFO("Blinky CENTRAL example started.");
@@ -566,29 +609,32 @@ int main(void)
 
     // Turn on the LED to signal scanning.
     //bsp_board_led_on(CENTRAL_SCANNING_LED);
-
+    
+    SEGGER_RTT_WriteString(0, "Hello World!\n");
     // Enter main loop.
     for (;;)
     {
-        //nrf_drv_saadc_sample();
+        nrf_drv_saadc_sample();
         idle_state_handle();
-        
-        err_code = ble_lbs_led_status_send(&m_ble_lbs_c, send_bit);
-        if (err_code != NRF_SUCCESS &&
-            err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
-            err_code != NRF_ERROR_INVALID_STATE)
-        {
-            APP_ERROR_CHECK(err_code);
-        }
-        
-        if(send_bit == 20){
-          send_bit = 0;
-        }   
-        else{
-          send_bit = 20;
-        }
-        //send_bit = !send_bit;
-        //err_code = ble_lbs_led_status_send(&m_ble_lbs_c, 20);
-        nrf_delay_ms(1000);
+        nrf_delay_ms(50);
+        NRF_LOG_INFO("Current Distance: %d\n", p_value);
+        i++;
+//        err_code = ble_lbs_led_status_send(&m_ble_lbs_c, send_bit);
+//        if (err_code != NRF_SUCCESS &&
+//            err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
+//            err_code != NRF_ERROR_INVALID_STATE)
+//        {
+//            APP_ERROR_CHECK(err_code);
+//        }
+//        
+//        if(send_bit == 20){
+//          send_bit = 0;
+//        }   
+//        else{
+//          send_bit = 20;
+//        }
+//        //send_bit = !send_bit;
+//        //err_code = ble_lbs_led_status_send(&m_ble_lbs_c, 20);
+//        nrf_delay_ms(1000);
     }
 }
