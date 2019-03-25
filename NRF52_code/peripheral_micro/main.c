@@ -91,7 +91,7 @@
 #define APP_BLE_CONN_CFG_TAG            1                                   /**< A tag identifying the SoftDevice BLE configuration. */
 #define APP_BLE_OBSERVER_PRIO           3                                   /**< Application's BLE observer priority. You shouldn't need to modify this value. */
 
-#define SAMPLES_IN_BUFFER 1 
+#define SAMPLES_IN_BUFFER               1 
 
 NRF_BLE_SCAN_DEF(m_scan);                                       /**< Scanning module instance. */
 BLE_LBS_C_DEF(m_ble_lbs_c);                                     /**< Main structure used by the LBS client module. */
@@ -104,6 +104,7 @@ uint32_t distance = 0;
 uint32_t atd_result = 0;
 uint32_t prev_value;
 nrf_saadc_value_t p_value = 0;
+
 static nrf_saadc_value_t m_buffer[SAMPLES_IN_BUFFER];
 
 nrfx_timer_t timer_us = NRFX_TIMER_INSTANCE(2);
@@ -124,22 +125,6 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
     app_error_handler(0xDEADBEEF, line_num, p_file_name);
 }
 
-
-/**@brief Function for the LEDs initialization.
- *
- * @details Initializes all LEDs used by the application.
- */
-static void leds_init(void)
-{
-    bsp_board_init(BSP_INIT_LEDS);
-    nrf_gpio_cfg_output(LEDBUTTON_LED);
-    nrf_gpio_cfg_output(CENTRAL_CONNECTED_LED);
-    nrf_gpio_cfg_output(CENTRAL_SCANNING_LED);
-
-    nrf_gpio_pin_write(CENTRAL_CONNECTED_LED,0);
-    nrf_gpio_pin_write(CENTRAL_SCANNING_LED,1);
-}
-
 /**@brief Function to start scanning.
  */
 static void scan_start(void)
@@ -154,52 +139,6 @@ static void scan_start(void)
 //    bsp_board_led_on(CENTRAL_SCANNING_LED);
     nrf_gpio_pin_write(CENTRAL_SCANNING_LED,0);
 }
-
-
-/**@brief Handles events coming from the LED Button central module.
- */
-static void lbs_c_evt_handler(ble_lbs_c_t * p_lbs_c, ble_lbs_c_evt_t * p_lbs_c_evt)
-{
-    switch (p_lbs_c_evt->evt_type)
-    {
-        case BLE_LBS_C_EVT_DISCOVERY_COMPLETE:
-        {
-            ret_code_t err_code;
-
-            err_code = ble_lbs_c_handles_assign(&m_ble_lbs_c,
-                                                p_lbs_c_evt->conn_handle,
-                                                &p_lbs_c_evt->params.peer_db);
-            NRF_LOG_INFO("LED Button service discovered on conn_handle 0x%x.", p_lbs_c_evt->conn_handle);
-
-            err_code = app_button_enable();
-            APP_ERROR_CHECK(err_code);
-
-            // LED Button service discovered. Enable notification of Button.
-            err_code = ble_lbs_c_button_notif_enable(p_lbs_c);
-            APP_ERROR_CHECK(err_code);
-        } break; // BLE_LBS_C_EVT_DISCOVERY_COMPLETE
-
-        case BLE_LBS_C_EVT_BUTTON_NOTIFICATION:
-        {
-            NRF_LOG_INFO("Button state changed on peer to 0x%x.", p_lbs_c_evt->params.button.button_state);
-            if (p_lbs_c_evt->params.button.button_state)
-            {
-//                bsp_board_led_on(LEDBUTTON_LED);
-                nrf_gpio_pin_write(LEDBUTTON_LED,0);
-            }
-            else
-            {
-//                bsp_board_led_off(LEDBUTTON_LED);
-                nrf_gpio_pin_write(LEDBUTTON_LED,1);
-            }
-        } break; // BLE_LBS_C_EVT_BUTTON_NOTIFICATION
-
-        default:
-            // No implementation needed.
-            break;
-    }
-}
-
 
 /**@brief Function for handling BLE events.
  *
@@ -295,21 +234,6 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
     }
 }
 
-
-/**@brief LED Button client initialization.
- */
-static void lbs_c_init(void)
-{
-    ret_code_t       err_code;
-    ble_lbs_c_init_t lbs_c_init_obj;
-
-    lbs_c_init_obj.evt_handler = lbs_c_evt_handler;
-
-    err_code = ble_lbs_c_init(&m_ble_lbs_c, &lbs_c_init_obj);
-    APP_ERROR_CHECK(err_code);
-}
-
-
 /**@brief Function for initializing the BLE stack.
  *
  * @details Initializes the SoftDevice and the BLE event interrupts.
@@ -334,7 +258,6 @@ static void ble_stack_init(void)
     // Register a handler for BLE events.
     NRF_SDH_BLE_OBSERVER(m_ble_observer, APP_BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
 }
-
 
 /**@brief Function for handling events from the button handler module.
  *
@@ -367,28 +290,6 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
     }
 }
 
-
-/**@brief Function for handling Scaning events.
- *
- * @param[in]   p_scan_evt   Scanning event.
- */
-static void scan_evt_handler(scan_evt_t const * p_scan_evt)
-{
-    ret_code_t err_code;
-
-    switch(p_scan_evt->scan_evt_id)
-    {
-        case NRF_BLE_SCAN_EVT_CONNECTING_ERROR:
-            err_code = p_scan_evt->params.connecting_err.err_code;
-            APP_ERROR_CHECK(err_code);
-            break;
-        default:
-          break;
-    }
-}
-
-
-
 /**@brief Function for initializing the button handler module.
  */
 static void buttons_init(void)
@@ -405,7 +306,6 @@ static void buttons_init(void)
                                BUTTON_DETECTION_DELAY);
     APP_ERROR_CHECK(err_code);
 }
-
 
 /**@brief Function for handling database discovery events.
  *
@@ -429,6 +329,145 @@ static void db_discovery_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
+/**@brief Function for initializing the GATT module.
+ */
+static void gatt_init(void)
+{
+    ret_code_t err_code = nrf_ble_gatt_init(&m_gatt, NULL);
+    APP_ERROR_CHECK(err_code);
+}
+
+/**@brief Function for handling the idle state (main loop).
+ *
+ * @details Handle any pending log operation(s), then sleep until the next event occurs.
+ */
+static void idle_state_handle(void)
+{
+    NRF_LOG_FLUSH();
+    nrf_pwr_mgmt_run();
+}
+
+
+/**@brief Handles events coming from the LED Button central module.
+ */
+static void lbs_c_evt_handler(ble_lbs_c_t * p_lbs_c, ble_lbs_c_evt_t * p_lbs_c_evt)
+{
+    switch (p_lbs_c_evt->evt_type)
+    {
+        case BLE_LBS_C_EVT_DISCOVERY_COMPLETE:
+        {
+            ret_code_t err_code;
+
+            err_code = ble_lbs_c_handles_assign(&m_ble_lbs_c,
+                                                p_lbs_c_evt->conn_handle,
+                                                &p_lbs_c_evt->params.peer_db);
+            NRF_LOG_INFO("LED Button service discovered on conn_handle 0x%x.", p_lbs_c_evt->conn_handle);
+
+            err_code = app_button_enable();
+            APP_ERROR_CHECK(err_code);
+
+            // LED Button service discovered. Enable notification of Button.
+            err_code = ble_lbs_c_button_notif_enable(p_lbs_c);
+            APP_ERROR_CHECK(err_code);
+        } break; // BLE_LBS_C_EVT_DISCOVERY_COMPLETE
+
+        case BLE_LBS_C_EVT_BUTTON_NOTIFICATION:
+        {
+            NRF_LOG_INFO("Button state changed on peer to 0x%x.", p_lbs_c_evt->params.button.button_state);
+            if (p_lbs_c_evt->params.button.button_state)
+            {
+//                bsp_board_led_on(LEDBUTTON_LED);
+                nrf_gpio_pin_write(LEDBUTTON_LED,0);
+            }
+            else
+            {
+//                bsp_board_led_off(LEDBUTTON_LED);
+                nrf_gpio_pin_write(LEDBUTTON_LED,1);
+            }
+        } break; // BLE_LBS_C_EVT_BUTTON_NOTIFICATION
+
+        default:
+            // No implementation needed.
+            break;
+    }
+}
+
+/**@brief LED Button client initialization.
+ */
+static void lbs_c_init(void)
+{
+    ret_code_t       err_code;
+    ble_lbs_c_init_t lbs_c_init_obj;
+
+    lbs_c_init_obj.evt_handler = lbs_c_evt_handler;
+
+    err_code = ble_lbs_c_init(&m_ble_lbs_c, &lbs_c_init_obj);
+    APP_ERROR_CHECK(err_code);
+}
+
+/**@brief Function for the LEDs initialization.
+ *
+ * @details Initializes all LEDs used by the application.
+ */
+static void leds_init(void)
+{
+    bsp_board_init(BSP_INIT_LEDS);
+    nrf_gpio_cfg_output(LEDBUTTON_LED);
+    nrf_gpio_cfg_output(CENTRAL_CONNECTED_LED);
+    nrf_gpio_cfg_output(CENTRAL_SCANNING_LED);
+
+    nrf_gpio_pin_write(CENTRAL_CONNECTED_LED,0);
+    nrf_gpio_pin_write(CENTRAL_SCANNING_LED,1);
+}
+
+/************************************************
+* Timer Event handler that uses the distance to
+* determine if an object is in the blind spot.
+* Sends that determination to the main micro
+* for decision making
+************************************************/
+nrfx_timer_event_handler_t LVEZ4_measure(void){
+    ret_code_t err_code;
+    
+    nrf_drv_saadc_sample();
+   
+    /************************************************
+    * If Object is close and was previously far,
+    * send 1 to main micro
+    ************************************************/
+    if(distance < 60 && prev_value == 0){
+      NRF_LOG_INFO("Switched from Far to Close\n");
+      NRF_LOG_FLUSH();
+      prev_value = 1;
+      err_code = ble_lbs_led_status_send(&m_ble_lbs_c, 1);
+      if (err_code != NRF_SUCCESS &&
+          err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
+          err_code != NRF_ERROR_INVALID_STATE)
+      {
+          APP_ERROR_CHECK(err_code);
+      }
+    }
+
+    /************************************************
+    * If Object is far and was previously close, 
+    * send 0 to main micro
+    ************************************************/
+    else if(distance >= 60 && prev_value == 1){
+      NRF_LOG_INFO("Switched from Close to Far\n");
+      NRF_LOG_FLUSH();
+      prev_value = 0;
+      err_code = ble_lbs_led_status_send(&m_ble_lbs_c, 0);
+      if (err_code != NRF_SUCCESS &&
+          err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
+          err_code != NRF_ERROR_INVALID_STATE)
+      {
+          APP_ERROR_CHECK(err_code);
+      }
+    }
+    NRF_LOG_FLUSH();
+    nrfx_timer_clear(&timer_us);
+   
+}
 
 /**@brief Function for initializing the log.
  */
@@ -440,16 +479,6 @@ static void log_init(void)
     NRF_LOG_DEFAULT_BACKENDS_INIT();
 }
 
-
-/**@brief Function for initializing the timer.
- */
-static void timer_init(void)
-{
-    ret_code_t err_code = app_timer_init();
-    APP_ERROR_CHECK(err_code);
-}
-
-
 /**@brief Function for initializing the Power manager. */
 static void power_management_init(void)
 {
@@ -458,6 +487,62 @@ static void power_management_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
+/************************************************
+* Gets called when SAADC is invoked 
+* (nrf_drv_saadc_sample()) in timer interrupt
+************************************************/
+void saadc_callback(nrf_drv_saadc_evt_t const * p_event)
+{
+    if (p_event->type == NRF_DRV_SAADC_EVT_DONE)
+    {
+        ret_code_t err_code;
+
+        err_code = nrf_drv_saadc_buffer_convert(p_event->data.done.p_buffer, SAMPLES_IN_BUFFER);
+        APP_ERROR_CHECK(err_code);
+        p_value = p_event->data.done.p_buffer[0];
+        distance = p_value;
+    }
+}
+
+/************************************************
+* Initializes ATD to sample analog input 6
+************************************************/
+void saadc_init(void)
+{
+    ret_code_t err_code;
+    nrf_saadc_channel_config_t channel_config 
+        = NRF_DRV_SAADC_DEFAULT_CHANNEL_CONFIG_SE(NRF_SAADC_INPUT_AIN6);
+    
+    //channel_config.gain = NRF_SAADC_GAIN1;
+
+    err_code = nrf_drv_saadc_init(NULL, saadc_callback);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = nrf_drv_saadc_channel_init(0, &channel_config);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = nrf_drv_saadc_buffer_convert(m_buffer, SAMPLES_IN_BUFFER);
+    APP_ERROR_CHECK(err_code);
+}
+
+/**@brief Function for handling Scaning events.
+ *
+ * @param[in]   p_scan_evt   Scanning event.
+ */
+static void scan_evt_handler(scan_evt_t const * p_scan_evt)
+{
+    ret_code_t err_code;
+
+    switch(p_scan_evt->scan_evt_id)
+    {
+        case NRF_BLE_SCAN_EVT_CONNECTING_ERROR:
+            err_code = p_scan_evt->params.connecting_err.err_code;
+            APP_ERROR_CHECK(err_code);
+            break;
+        default:
+          break;
+    }
+}
 
 static void scan_init(void)
 {
@@ -480,104 +565,10 @@ static void scan_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
-
-/**@brief Function for initializing the GATT module.
- */
-static void gatt_init(void)
-{
-    ret_code_t err_code = nrf_ble_gatt_init(&m_gatt, NULL);
-    APP_ERROR_CHECK(err_code);
-}
-
-/**@brief Function for handling the idle state (main loop).
- *
- * @details Handle any pending log operation(s), then sleep until the next event occurs.
- */
-static void idle_state_handle(void)
-{
-    NRF_LOG_FLUSH();
-    nrf_pwr_mgmt_run();
-}
-
-void saadc_callback(nrf_drv_saadc_evt_t const * p_event)
-{
-    if (p_event->type == NRF_DRV_SAADC_EVT_DONE)
-    {
-        ret_code_t err_code;
-
-        err_code = nrf_drv_saadc_buffer_convert(p_event->data.done.p_buffer, SAMPLES_IN_BUFFER);
-        APP_ERROR_CHECK(err_code);
-        p_value = p_event->data.done.p_buffer[0];
-        distance = p_value;
-        distance = distance / 1024;
-        distance = distance * (.6 / (1.0/6));
-        //distance = p_value / 256;
-        //distance = (1.0 / ((double)distance)) * ((double) VCC / 512.0);
-        //NRF_LOG_INFO("%d\r\n", p_event->data.done.p_buffer[0]);
-    }
-}
-
-void saadc_init(void)
-{
-    ret_code_t err_code;
-    nrf_saadc_channel_config_t channel_config 
-        = NRF_DRV_SAADC_DEFAULT_CHANNEL_CONFIG_SE(NRF_SAADC_INPUT_AIN6);
-    
-    //channel_config.gain = NRF_SAADC_GAIN1;
-
-    err_code = nrf_drv_saadc_init(NULL, saadc_callback);
-    APP_ERROR_CHECK(err_code);
-
-    err_code = nrf_drv_saadc_channel_init(0, &channel_config);
-    APP_ERROR_CHECK(err_code);
-
-    err_code = nrf_drv_saadc_buffer_convert(m_buffer, SAMPLES_IN_BUFFER);
-    APP_ERROR_CHECK(err_code);
-}
-
-nrfx_timer_event_handler_t LVEZ4_measure(void){
-    ret_code_t err_code;
-    
-    nrf_drv_saadc_sample();
-   
-    /************************************************
-    * If Object is close and was previously far,
-    * send 1 to main micro
-    ************************************************/
-    if(p_value < 60 && prev_value == 0){
-      NRF_LOG_INFO("Switched from Far to Close\n");
-      NRF_LOG_FLUSH();
-      prev_value = 1;
-      err_code = ble_lbs_led_status_send(&m_ble_lbs_c, 1);
-      if (err_code != NRF_SUCCESS &&
-          err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
-          err_code != NRF_ERROR_INVALID_STATE)
-      {
-          APP_ERROR_CHECK(err_code);
-      }
-    }
-
-    /************************************************
-    * If Object is far and was previously close, 
-    * send 0 to main micro
-    ************************************************/
-    else if(p_value >= 60 && prev_value == 1){
-      NRF_LOG_INFO("Switched from Close to Far\n");
-      NRF_LOG_FLUSH();
-      prev_value = 0;
-      err_code = ble_lbs_led_status_send(&m_ble_lbs_c, 0);
-      if (err_code != NRF_SUCCESS &&
-          err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
-          err_code != NRF_ERROR_INVALID_STATE)
-      {
-          APP_ERROR_CHECK(err_code);
-      }
-    }
-    NRF_LOG_FLUSH();
-    nrfx_timer_clear(&timer_us);
-   
-}
-
+/************************************************
+* Initializes timer to conduct ATD 20 times a
+* second (compare 1563)
+************************************************/
 void simple_timer_init(void){
     const nrfx_timer_config_t timer_config = {
     .frequency = NRF_TIMER_FREQ_31250Hz,
@@ -588,12 +579,18 @@ void simple_timer_init(void){
     };
 
     nrfx_timer_init(&timer_us, &timer_config, (nrfx_timer_event_handler_t) LVEZ4_measure);
-//    nrfx_timer_compare(&timer_us, 0, 1563, true);
     nrfx_timer_compare(&timer_us, 0, 1563, true);
     
     nrfx_timer_enable(&timer_us);
 }
 
+/**@brief Function for initializing the timer.
+ */
+static void timer_init(void)
+{
+    ret_code_t err_code = app_timer_init();
+    APP_ERROR_CHECK(err_code);
+}
 
 int main(void)
 {
@@ -617,36 +614,37 @@ int main(void)
     // Start execution.
     NRF_LOG_INFO("Blinky CENTRAL example started.");
     scan_start();
-
-    // Turn on the LED to signal scanning.
-    //bsp_board_led_on(CENTRAL_SCANNING_LED);
     
     // Enter main loop.
     for (;;)
     {
-        //nrf_drv_saadc_sample();
         idle_state_handle();
-
-        NRF_LOG_INFO("Current Distance: %d\n", p_value);
-        i++;
-        //nrf_delay_ms(50);
-
-//        err_code = ble_lbs_led_status_send(&m_ble_lbs_c, send_bit);
-//        if (err_code != NRF_SUCCESS &&
-//            err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
-//            err_code != NRF_ERROR_INVALID_STATE)
-//        {
-//            APP_ERROR_CHECK(err_code);
-//        }
-//        
-////        if(send_bit == 20){
-////          send_bit = 0;
-////        }   
-////        else{
-////          send_bit = 20;
-////        }
-////        send_bit = !send_bit;
-//        //err_code = ble_lbs_led_status_send(&m_ble_lbs_c, 20);
-//        nrf_delay_ms(1000);
+        //NRF_LOG_INFO("Current Distance: %d\n", p_value);
     }
 }
+
+
+/************************************************
+* Code that may be useful?
+************************************************/
+/*
+
+        err_code = ble_lbs_led_status_send(&m_ble_lbs_c, send_bit);
+        if (err_code != NRF_SUCCESS &&
+            err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
+            err_code != NRF_ERROR_INVALID_STATE)
+        {
+            APP_ERROR_CHECK(err_code);
+        }
+        
+//        if(send_bit == 20){
+//          send_bit = 0;
+//        }   
+//        else{
+//          send_bit = 20;
+//        }
+        send_bit = !send_bit;
+        //err_code = ble_lbs_led_status_send(&m_ble_lbs_c, 20);
+        nrf_delay_ms(1000);
+
+*/
