@@ -3824,10 +3824,6 @@
     .cc_channel_count = NRF_TIMER_CC_CHANNEL_COUNT(id),           \
 }
 
-#define TRIGGER_PIN 30
-#define ECHO_PIN 31
-#define DRIFT_LEFT_PIN 1
-#define DRIFT_RIGHT_PIN 2
 #define VCC 3.3
 
 #ifndef ILI9341_SPI_INSTANCE

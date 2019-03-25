@@ -101,6 +101,10 @@
 #define LEDBUTTON_BUTTON                BSP_BUTTON_0                            /**< Button that will trigger the notifioation event with the LED Button Service */
 #define TEST_LED                        22
 
+#define DRIFT_LEFT_PIN                  1
+#define DRIFT_RIGHT_PIN                 2
+#define ERROR_PIN                       3
+
 #define DEVICE_NAME                     "Yash_Blinky"                 /**< Name of device. Will be included in the advertising data. */
 
 #define APP_BLE_OBSERVER_PRIO           3                                       /**< Application's BLE observer priority. You shouldn't need to modify this value. */
@@ -123,19 +127,17 @@
 
 #define DEAD_BEEF                       0xDEADBEEF                              /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 ///////////
-#define GRAY            0xC618
-#define RED             0xF800
-#define BLUE            0x001F
-#define BLACK           0xFFFF
-#define SPI_MOSI 
-#define BUFFER_SIZE     60
-#define LEFT 1
-#define RIGHT 2
-#define SENSE_PIN 3
+#define GRAY                            0xC618
+#define RED                             0xF800
+#define BLUE                            0x001F
+#define BLACK                           0xFFFF
 
-#define TEST_STRING "Nordic"
+#define BUFFER_SIZE                     60
+#define CENTER                          0
+#define LEFT                            1
+#define RIGHT                           2
 
-#define SAMPLES_IN_BUFFER 1 
+#define SAMPLES_IN_BUFFER               1 
 
 BLE_LBS_DEF(m_lbs);                                                             /**< LED Button Service instance. */
 NRF_BLE_GATT_DEF(m_gatt);                                                       /**< GATT module instance. */
@@ -147,9 +149,9 @@ static uint8_t m_adv_handle = BLE_GAP_ADV_SET_HANDLE_NOT_SET;                   
 static uint8_t m_enc_advdata[BLE_GAP_ADV_SET_DATA_SIZE_MAX];                    /**< Buffer for storing an encoded advertising set. */
 static uint8_t m_enc_scan_response_data[BLE_GAP_ADV_SET_DATA_SIZE_MAX];         /**< Buffer for storing an encoded scan data. */
 
-static uint8_t       m_tx_buf[] = TEST_STRING;           /**< TX buffer. */
-static uint8_t       m_rx_buf[sizeof(TEST_STRING) + 1];    /**< RX buffer. */
-static const uint8_t m_length = sizeof(m_tx_buf);        /**< Transfer length. */
+static uint8_t       m_tx_buf[] = TEST_STRING;                                  /**< TX buffer. */
+static uint8_t       m_rx_buf[sizeof(TEST_STRING) + 1];                         /**< RX buffer. */
+static const uint8_t m_length = sizeof(m_tx_buf);                               /**< Transfer length. */
 char * close = "CLOSE:    ";
 char * far = "FAR:    ";
 const char * text = "";
@@ -190,24 +192,7 @@ void pwm_ready_callback(uint32_t pwm_id)    // PWM callback function
 
 void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
-//    if(nrf_gpio_pin_read(ECHO_PIN)){
-//        NRF_TIMER2->TASKS_START = 1;
-//    }
 
-//    if(distance < 300){
-//      if(text != close){
-//          draw_text = 1;       
-//      }
-//      text = close;
-//      object_close = 1;
-//    }else{
-//      if(text != far){
-//          draw_text = 1;
-//      }
-//      text = far;
-//      object_close = 0;
-//    }
-//
 //    // EMULATING RASPBERRY PI
 //    if(drifting_values[i] == 1 && rect_status != 1){
 //      draw_right = 1;
@@ -229,15 +214,40 @@ void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
    
 }
 
-void drifting_gpio_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
+//GPIO Pin interrupt handler for the three pins from the raspberry pi
+void drifting_gpio_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t state)
 {
-     if(nrf_gpio_pin_read(DRIFT_LEFT_PIN)){
-        curr_drift = LEFT;
-     }
-     if(nrf_gpio_pin_read(DRIFT_RIGHT_PIN)){
-        curr_drift = RIGHT;
-     }
-    return;
+    if(pin == DRIFT_LEFT_PIN){
+        if(state == 1){
+            curr_drift = LEFT;
+            draw_right = 0;
+            draw_left = 1;
+            rect_status = 2;
+        }else{
+            curr_drift = CENTER;
+            draw_right = 0;
+            draw_left = 0;
+            rect_status = 0;
+        }
+    }else if(pin == DRIFT_RIGHT_PIN){
+        if(state == 1){
+            curr_drift = RIGHT;
+            draw_right = 0;
+            draw_left = 1;
+            rect_status = 2;
+        }else{
+            curr_drift = CENTER;
+            draw_right = 0;
+            draw_left = 0;
+            rect_status = 0;
+        }
+    }else if(pin == ERROR_PIN){
+        if(state == 1){
+            drift_error = 1;
+        }else{
+            drift_error = 0;
+        }
+    }
 }
 
 static void gpio_init(void)
@@ -258,6 +268,8 @@ static void gpio_init(void)
     err_code = nrf_drv_gpiote_in_init(DRIFT_LEFT_PIN, &in_config, drifting_gpio_handler);
     APP_ERROR_CHECK(err_code);
     err_code = nrf_drv_gpiote_in_init(DRIFT_RIGHT_PIN, &in_config, drifting_gpio_handler);
+    APP_ERROR_CHECK(err_code);
+    err_code = nrf_drv_gpiote_in_init(ERROR_PIN, &in_config, drifting_gpio_handler);
     APP_ERROR_CHECK(err_code);
 }
 
@@ -756,14 +768,13 @@ int main(void)
     services_init();
     advertising_init();
     conn_params_init();
-    NRF_LOG_INFO("REACHED HERE");
 
     screen_clear();
-    nrf_gfx_rect_t wipe_text = NRF_GFX_RECT(5, nrf_gfx_height_get(lcd) - 50, nrf_gfx_width_get(lcd), 40);
+    nrf_gfx_rect_t wipe_text = NRF_GFX_RECT(5, nrf_gfx_height_get(lcd) - 50, nrf_gfx_width_get(lcd), 40); //Creating the wipe text rectangle
     uint32_t value;
 
     // Start execution.
-    NRF_LOG_INFO("Blinky example started.");
+    NRF_LOG_INFO("Main Code started.");
 
     advertising_start();
 
@@ -800,7 +811,6 @@ int main(void)
           test_rect.x = ILI9341_WIDTH - 30;
           test_rect.y = 100;
           nrf_gfx_rect_draw(lcd, &test_rect, 10, BLUE, true);
-
       }
       else if(rect_status == 0){
           nrf_gfx_rect_draw(lcd, &test_rect, 10, GRAY, true);
