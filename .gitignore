@@ -5,7 +5,7 @@ mystats.stats
 mystats_output.txt
 =======
 test_images/*
-
+Third_Eye_Eagle/Cam*
 
 *.epf
 *.s#?
