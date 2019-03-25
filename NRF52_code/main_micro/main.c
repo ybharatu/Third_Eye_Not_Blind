@@ -134,19 +134,6 @@
 #define SENSE_PIN 3
 
 #define TEST_STRING "Nordic"
-#ifdef LVEZ4_AN_PIN
-    #define PIN_IN LVEZ4_AN_PIN
-#endif
-#ifndef PIN_IN
-    #error "Please indicate input pin"
-#endif
-
-#ifdef LVEZ4_AN_PIN
-    #define PIN_OUT LVEZ4_AN_PIN
-#endif
-#ifndef PIN_OUT
-    #error "Please indicate output pin"
-#endif
 
 #define SAMPLES_IN_BUFFER 1 
 
@@ -160,10 +147,6 @@ static uint8_t m_adv_handle = BLE_GAP_ADV_SET_HANDLE_NOT_SET;                   
 static uint8_t m_enc_advdata[BLE_GAP_ADV_SET_DATA_SIZE_MAX];                    /**< Buffer for storing an encoded advertising set. */
 static uint8_t m_enc_scan_response_data[BLE_GAP_ADV_SET_DATA_SIZE_MAX];         /**< Buffer for storing an encoded scan data. */
 
-
-////////////////////////
-//start code from LCD code
-////////////////////////
 static uint8_t       m_tx_buf[] = TEST_STRING;           /**< TX buffer. */
 static uint8_t       m_rx_buf[sizeof(TEST_STRING) + 1];    /**< RX buffer. */
 static const uint8_t m_length = sizeof(m_tx_buf);        /**< Transfer length. */
@@ -188,19 +171,8 @@ uint8_t draw_text = 0;
 uint8_t curr_drift = 0;
 uint32_t distance = 0;
 uint32_t atd_result = 0;
-//nrf_saadc_value_t p_value;
-//static nrf_saadc_value_t m_buffer[SAMPLES_IN_BUFFER];
-//static nrf_saadc_value_t     m_buffer_pool[2][SAMPLES_IN_BUFFER];
 
-static uint8_t       drifting_values[BUFFER_SIZE] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2};
-//static uint8_t       drifting_values[BUFFER_SIZE] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2};
-//static uint8_t       drifting_values[15] = {0,0,0,1,1,1,0,0,0,2,2,2,0,0,0};
 nrf_gfx_rect_t test_rect = NRF_GFX_RECT(10,100,20,150);
-
-//nrfx_timer_t timer_us = NRFX_TIMER_INSTANCE(2);
-
-//nrfx_timer_event_handler_t hc_sr04_measure(void);
-//nrfx_timer_event_handler_t LVEZ4_measure(void);
 
 static void screen_clear(void)
 { 
@@ -277,7 +249,7 @@ static void gpio_init(void)
 
     nrf_drv_gpiote_out_config_t out_config = GPIOTE_CONFIG_OUT_SIMPLE(false);
 
-    err_code = nrf_drv_gpiote_out_init(PIN_OUT, &out_config);
+    //err_code = nrf_drv_gpiote_out_init(PIN_OUT, &out_config);
     APP_ERROR_CHECK(err_code);
 
     nrf_drv_gpiote_in_config_t in_config = GPIOTE_CONFIG_IN_SENSE_TOGGLE(true);
@@ -288,54 +260,6 @@ static void gpio_init(void)
     err_code = nrf_drv_gpiote_in_init(DRIFT_RIGHT_PIN, &in_config, drifting_gpio_handler);
     APP_ERROR_CHECK(err_code);
 }
-
-void LVEZ4_init(void){
-	NRF_TIMER2->TASKS_STOP = 1;
-	NRF_TIMER2->MODE = TIMER_MODE_MODE_Timer;
-	NRF_TIMER2->PRESCALER = 0;
-	NRF_TIMER2->BITMODE = 3;
-	NRF_TIMER2->TASKS_CLEAR = 1;
-}
-
-//nrfx_timer_event_handler_t LVEZ4_measure(void){
-//
-//    int flag = 0;
-//    if(distance < 300){
-//      if(text != close){
-//          draw_text = 1;       
-//      }
-//      text = close;
-//      object_close = 1;
-//    }else{
-//      if(text != far){
-//          draw_text = 1;
-//      }
-//      text = far;
-//      object_close = 0;
-//    }
-//
-//    nrfx_timer_clear(&timer_us);
-//}
-
-
-void simple_timer_init(void){
-    const nrfx_timer_config_t timer_config = {
-    .frequency = NRF_TIMER_FREQ_31250Hz,
-    .bit_width = NRF_TIMER_BIT_WIDTH_24,
-    .interrupt_priority = 2,
-    .mode = NRF_TIMER_MODE_TIMER,
-    .p_context = NULL
-    };
-
-    //nrfx_timer_init(&timer_us, &timer_config, LVEZ4_measure);
-    //nrfx_timer_compare(&timer_us, 0, 1563, true);
-}
-/////////////////////////end of LCD code code
-
-
-
-
-
 
 /**@brief Struct that contains pointers to the encoded advertising data. */
 static ble_gap_adv_data_t m_adv_data =
@@ -507,20 +431,28 @@ static void nrf_qwr_error_handler(uint32_t nrf_error)
 static void led_write_handler(uint16_t conn_handle, ble_lbs_t * p_lbs, uint8_t led_state)
 {
     draw_text = 1;
+    /************************************************
+    * Actions if received "CLOSE" message from
+    * peripheral micro:
+    * 1. Change text to "Close"
+    * 2. Change LED Status
+    ************************************************/
     if (led_state)
     {
         text = close;
-        nrf_gpio_pin_write(TEST_LED,0);
-        //bsp_board_led_on(LEDBUTTON_LED);
-        nrf_gpio_pin_write(TEST_LED,0);
+        nrf_gpio_pin_write(TEST_LED,1);
         NRF_LOG_INFO("Received LED ON!");
     }
+    /************************************************
+    * Actions if received "FAR" message from
+    * peripheral micro:
+    * 1. Change text to "Far"
+    * 2. Change LED Status
+    ************************************************/
     else
     {
-        nrf_gpio_pin_write(TEST_LED,1);
         text = far;
-        //bsp_board_led_off(LEDBUTTON_LED);
-        nrf_gpio_pin_write(TEST_LED,1);
+        nrf_gpio_pin_write(TEST_LED,0);
         NRF_LOG_INFO("Received LED OFF!");
     }
 }
@@ -817,8 +749,6 @@ int main(void)
     timers_init();
     buttons_init();
     nrf_gfx_init(lcd);
-    LVEZ4_init();
-    //simple_timer_init();
     power_management_init();
     ble_stack_init();
     gap_params_init();
@@ -827,9 +757,6 @@ int main(void)
     advertising_init();
     conn_params_init();
     NRF_LOG_INFO("REACHED HERE");
-    
-    //nrfx_timer_enable(&timer_us);
-    //NRF_TIMER1->TASKS_START = 1;
 
     screen_clear();
     nrf_gfx_rect_t wipe_text = NRF_GFX_RECT(5, nrf_gfx_height_get(lcd) - 50, nrf_gfx_width_get(lcd), 40);
