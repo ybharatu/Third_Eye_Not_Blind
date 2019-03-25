@@ -5,3 +5,4 @@ Authors:
   - Yash Bharatula
   - Kyla Hayes
   - Michael Toner
+- Alex Symanski  
