@@ -102,10 +102,11 @@ static char const m_target_periph_name[] = "Yash_Blinky";     /**< Name of the d
 
 uint32_t distance = 0;
 uint32_t atd_result = 0;
-nrf_saadc_value_t p_value;
+uint32_t prev_value;
+nrf_saadc_value_t p_value = 0;
 static nrf_saadc_value_t m_buffer[SAMPLES_IN_BUFFER];
 
-nrfx_timer_t timer_us = NRFX_TIMER_INSTANCE(1);
+nrfx_timer_t timer_us = NRFX_TIMER_INSTANCE(2);
 
 /**@brief Function to handle asserts in the SoftDevice.
  *
@@ -536,10 +537,17 @@ void saadc_init(void)
 
 nrfx_timer_event_handler_t LVEZ4_measure(void){
     ret_code_t err_code;
+    
+    nrf_drv_saadc_sample();
+   
     /************************************************
-    * If Object is close, send 1 to main micro
+    * If Object is close and was previously far,
+    * send 1 to main micro
     ************************************************/
-    if(p_value < 60){
+    if(p_value < 60 && prev_value == 0){
+      NRF_LOG_INFO("Switched from Far to Close\n");
+      NRF_LOG_FLUSH();
+      prev_value = 1;
       err_code = ble_lbs_led_status_send(&m_ble_lbs_c, 1);
       if (err_code != NRF_SUCCESS &&
           err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
@@ -550,9 +558,13 @@ nrfx_timer_event_handler_t LVEZ4_measure(void){
     }
 
     /************************************************
-    * If Object is far, send 0 to main micro
+    * If Object is far and was previously close, 
+    * send 0 to main micro
     ************************************************/
-    else{
+    else if(p_value >= 60 && prev_value == 1){
+      NRF_LOG_INFO("Switched from Close to Far\n");
+      NRF_LOG_FLUSH();
+      prev_value = 0;
       err_code = ble_lbs_led_status_send(&m_ble_lbs_c, 0);
       if (err_code != NRF_SUCCESS &&
           err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
@@ -561,31 +573,32 @@ nrfx_timer_event_handler_t LVEZ4_measure(void){
           APP_ERROR_CHECK(err_code);
       }
     }
-
+    NRF_LOG_FLUSH();
     nrfx_timer_clear(&timer_us);
    
-    return;
 }
 
 void simple_timer_init(void){
     const nrfx_timer_config_t timer_config = {
     .frequency = NRF_TIMER_FREQ_31250Hz,
     .bit_width = NRF_TIMER_BIT_WIDTH_24,
-    .interrupt_priority = 2,
+    .interrupt_priority = 6,
     .mode = NRF_TIMER_MODE_TIMER,
     .p_context = NULL
     };
 
-    nrfx_timer_init(&timer_us, &timer_config, LVEZ4_measure);
+    nrfx_timer_init(&timer_us, &timer_config, (nrfx_timer_event_handler_t) LVEZ4_measure);
+//    nrfx_timer_compare(&timer_us, 0, 1563, true);
     nrfx_timer_compare(&timer_us, 0, 1563, true);
-
+    
+    nrfx_timer_enable(&timer_us);
 }
 
 
 int main(void)
 {
     ret_code_t err_code;
-    int send_bit = 0;
+    int send_bit = 1;
     int i = 0;
     // Initialize.
     log_init();
@@ -601,8 +614,6 @@ int main(void)
     saadc_init();
     simple_timer_init();
 
-    nrfx_timer_enable(&timer_us);
-
     // Start execution.
     NRF_LOG_INFO("Blinky CENTRAL example started.");
     scan_start();
@@ -610,15 +621,16 @@ int main(void)
     // Turn on the LED to signal scanning.
     //bsp_board_led_on(CENTRAL_SCANNING_LED);
     
-    SEGGER_RTT_WriteString(0, "Hello World!\n");
     // Enter main loop.
     for (;;)
     {
-        nrf_drv_saadc_sample();
+        //nrf_drv_saadc_sample();
         idle_state_handle();
-        nrf_delay_ms(50);
+
         NRF_LOG_INFO("Current Distance: %d\n", p_value);
         i++;
+        //nrf_delay_ms(50);
+
 //        err_code = ble_lbs_led_status_send(&m_ble_lbs_c, send_bit);
 //        if (err_code != NRF_SUCCESS &&
 //            err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
@@ -627,13 +639,13 @@ int main(void)
 //            APP_ERROR_CHECK(err_code);
 //        }
 //        
-//        if(send_bit == 20){
-//          send_bit = 0;
-//        }   
-//        else{
-//          send_bit = 20;
-//        }
-//        //send_bit = !send_bit;
+////        if(send_bit == 20){
+////          send_bit = 0;
+////        }   
+////        else{
+////          send_bit = 20;
+////        }
+////        send_bit = !send_bit;
 //        //err_code = ble_lbs_led_status_send(&m_ble_lbs_c, 20);
 //        nrf_delay_ms(1000);
     }
