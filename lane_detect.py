@@ -5,29 +5,31 @@
 #################################################################
 import matplotlib
 matplotlib.use('PS')
-import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import numpy as np
 import cv2
 import time
 from multiprocessing import Process, Value, Array, Lock
 import multiprocessing
-import asyncio
 import os
 import sys
 import getopt
-import timeit
-from ctypes import c_wchar_p
 from cProfile import Profile
 from pstats import Stats
-# import picamera
-# from picamera.array import PiRGBArray
 import io
 import subprocess
+try:
+    import RPi.GPIO as GPIO
+except RuntimeError:
+    print("Error importing RPi.GPIO!  This is probably because you need superuser privileges.  You can achieve this by using 'sudo' to run your script")
 
+DRIFT_LEFT_PIN = 11
+DRIFT_RIGHT_PIN = 13
+ERROR_PIN = 15
+chan_list = [DRIFT_LEFT_PIN, DRIFT_RIGHT_PIN, ERROR_PIN]
 
 NUM_WORKERS = 2
-NUM_FRAMES = 30 #should be multiple of 3
+NUM_FRAMES = 30
 #################################################################
 # Lists used for draw_lines
 #################################################################
@@ -336,7 +338,7 @@ def hough_lines(img, rho, theta, threshold, min_line_len, max_line_gap):
         draw_lines(line_img, lines)
     return line_img
 
-def hough_lines_2(img, rho, theta, threshold, min_line_len, max_line_gap):
+def get_drift_value(img, rho, theta, threshold, min_line_len, max_line_gap):
     """
     `img` should be the output of a Canny transform.
     """
@@ -364,69 +366,6 @@ def weighted_img(img, initial_img, α=0.8, β=1., λ=0.):
     NOTE: initial_img and img must be the same shape!
     """
     return cv2.addWeighted(initial_img, α, img, β, λ)
-
-#################################################################
-# Function: write_images
-# Description: Dequeues an image from the buffer and writes it
-# as a file. Can be modified to not write images
-#################################################################
-def write_images(out_buf, foo):
-    imgs = 0
-    first_time_empty = True
-    while imgs is not NUM_FRAMES:
-        #spin wait while buffer is empty
-        while out_buf.empty():
-            if first_time_empty:
-                print("out buf is empty")
-                first_time_empty = False
-            else:
-                pass
-        first_time_empty = True
-        processed = out_buf.get()
-        mpimg.imsave("processed_images/testimg_"+ str(imgs) + out_ext, processed)
-        print("Written Image " + str(imgs))
-        imgs += 1
-    print("Done writing images")
-
-
-
-#################################################################
-# Function: get_images
-# Description: Enqueues images onto the buffer.
-#################################################################
-def get_images(img_buf, vid, filename):
-
-    if vid:
-        # code to capture video
-        vidcap = cv2.VideoCapture(filename)
-        success = True
-        imgs = 0
-        #while success:
-
-        while imgs is not NUM_FRAMES:
-            # cv2.imwrite("frame%d.jpg" % count, image)     # save frame as JPEG file
-            while img_buf.full():
-                pass
-            success, image = vidcap.read()
-            if success:
-                img_buf.put(image)
-                #print("Image " + str(imgs) + " in input buffer, PID: " + str(os.getPID()))
-                imgs += 1
-            else:
-                print("No more images")
-        print("Total frames processed: " + str(imgs))
-    else:
-        #code to process 100 images
-        imgs = 0
-        print("FILENAME in get_images: " + filename)
-        print("FILENAME: " + str(len(filename)))
-        while imgs is not NUM_FRAMES:
-            image = mpimg.imread(filename)
-            while img_buf.full():
-                pass
-
-            img_buf.put(image)
-            imgs += 1
 
 #################################################################
 # Function: handle_images
@@ -634,7 +573,7 @@ def processImage(img_buf, out_buf, save, which_worker):
             weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
             mpimg.imsave("processed_images/aaa_"+ str(imgs) + "_worker_" + str(which_worker)+out_ext, weighted_img)
 
-        dist_off = hough_lines_2(canny, 1, np.pi / 180, 10, 20, 5)
+        dist_off = get_drift_value(canny, 1, np.pi / 180, 10, 20, 5)
 
         while out_buf.full():
             pass
@@ -646,7 +585,28 @@ def processImage(img_buf, out_buf, save, which_worker):
         imgs += 1
         #print("NUM_FRAMES / 3 = " + str(int(NUM_FRAMES / 3)) + " and imgs = " + str(imgs))
 
+#################################################################
+# Function: GPIO_setup
+# Description: Sets up GPIO pins in chan_list as outputs.
+# GPIO.BOARD specifies that you are referring to the pins by the
+# number of the pin the the plug - i.e the numbers printed on
+# the board. Warnings are enabled
+#################################################################
+def GPIO_setup(void):
+    GPIO.setmode(GPIO.BOARD)
+    GPIO.setwarnings(True)
+    GPIO.setup(chan_list, GPIO.OUT)
 
+#################################################################
+# Function: GPIO_cleanup
+# Description: Cleans up resources used by GPIO pins in
+# chan_list. Returns all channels to be inputs with no pull
+# up/down.
+# Note: Currently only calls GPIO.cleanup() but here just in case
+# something else needs to be done.
+#################################################################
+def GPIO_cleanup(void):
+    GPIO.cleanup()
 
 #################################################################
 # Function: Main Function
@@ -679,10 +639,10 @@ def main(argv):
             filename = "livefeed"
         elif opt in ("-i", "--image"):
             im = True
-            #NUM_FRAMES = 1
 
     print("FILENAME: " + filename)
 
+    GPIO_setup()
 
     input_img_1 = multiprocessing.Queue()
     input_img_2 = multiprocessing.Queue()
@@ -692,21 +652,11 @@ def main(argv):
     output_img_2 = multiprocessing.Queue()
     #output_img_3 = multiprocessing.Queue()
 
-    # img_buf = multiprocessing.Queue()
-    # out_buf = multiprocessing.Queue()
-
-    # img_opening_process = Process(target=get_images, args=(img_buf, vid, filename))
-    # img_processing_process = Process(target=processImage, args=(img_buf, out_buf))
-    # img_writing_process = Process(target=write_images, args=(out_buf, None))
-
     img_handling_process = Process(target=handle_images, args=(input_img_1, input_img_2,\
                                                             output_img_1, output_img_2, vid, filename, live, im, save))
     img_processing_1_process = Process(target=processImage, args=(input_img_1, output_img_1, save, 0))
     img_processing_2_process = Process(target=processImage, args=(input_img_2, output_img_2, save, 1))
     #img_processing_3_process = Process(target=processImage, args=(input_img_3, output_img_3))
-
-    prof = Profile()
-    prof.enable()
 
     start = time.time()
     img_handling_process.start()
@@ -727,25 +677,7 @@ def main(argv):
     end = time.time()
     print("Total Time: " + str(end - start) + " sec")
     print("FPS: " + str(NUM_FRAMES/(end - start)) + " sec")
-
-    prof.disable()
-    prof.dump_stats('mystats.stats')
-
-    with open('mystats_output.txt', 'wt') as output:
-        stats = Stats('mystats.stats', stream=output)
-        stats.sort_stats('cumulative', 'time')
-        stats.print_stats()
-
-    # img_opening_process.start()
-    # img_processing_process.start()
-    # img_writing_process.start()
-
-    # img_opening_process.join()
-    # print("finished process 1")
-    # img_processing_process.join()
-    # print("finished process 2")
-    # img_writing_process.join()
-    # print("finished process 2")
+    GPIO_cleanup()
 
 
 if __name__ == "__main__":
