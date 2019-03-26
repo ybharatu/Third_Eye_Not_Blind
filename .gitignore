@@ -12,3 +12,4 @@ Third_Eye_Eagle/Cam*
 *.b#?
 *.l#?
 *.lck
+__pycache__/*
