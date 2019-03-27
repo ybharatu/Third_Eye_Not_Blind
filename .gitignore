@@ -1,8 +1,12 @@
 .idea*
-processed_images/
+processed_images/*
 .DS*
 mystats.stats
 mystats_output.txt
+i2c.py
+i2c_test.py
+out.txt
+rpi_i2c_sample_code.py
 =======
 test_images/*
 source_images/*
