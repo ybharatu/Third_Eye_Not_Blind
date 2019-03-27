@@ -9,9 +9,11 @@ out.txt
 rpi_i2c_sample_code.py
 =======
 test_images/*
-source_images/*
+Third_Eye_Eagle/Cam*
 
+*.epf
 *.s#?
 *.b#?
 *.l#?
 *.lck
+__pycache__/*
