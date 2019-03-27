@@ -16,6 +16,12 @@ import subprocess
 import matplotlib
 matplotlib.use('PS')
 import matplotlib.image as mpimg
+try:
+    import RPi.GPIO as GPIO
+except RuntimeError:
+    print("Error importing RPi.GPIO!  This is probably because you need superuser privileges.  You can achieve this by using 'sudo' to run your script")
+except ImportError:
+    print("RPi is not installed. It can only be installed on linux enviornments")
 
 #################################################################
 # Function: handle_images

@@ -5,7 +5,6 @@
 #################################################################
 import os
 import sys
-#from lane_cv import *
 from common import *
 import time
 from multiprocessing import Process
@@ -100,7 +99,7 @@ def main(argv):
     #################################################################
     # Sets up GPIO pins
     #################################################################
-    #GPIO_setup()
+    GPIO_setup()
 
     #################################################################
     # Creates Multiprocessing Queues and processes
@@ -143,7 +142,7 @@ def main(argv):
     #################################################################
     # Cleans up GPIO Resources
     #################################################################
-    #GPIO_cleanup()
+    GPIO_cleanup()
 
 
 if __name__ == "__main__":

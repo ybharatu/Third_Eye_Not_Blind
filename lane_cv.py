@@ -228,6 +228,8 @@ def find_position_in_lines(img, lines):
 
     # this is used to filter out the outlying lines that can affect the average
     # We then use the slope we determined to find the y-intercept of the filtered lines by solving for b in y=mx+b
+    if(lines is None):
+        return 3;
     for line in lines:
         for x1, y1, x2, y2 in line:
             denom = x1 - x2
