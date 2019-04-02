@@ -71,6 +71,7 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
                         break
                     image = frame.array
                     input_buffers[curr_in_buffer].put(image)
+                    print("input image " + str(in_imgs) + " onto input buffer")
                     curr_in_buffer = (curr_in_buffer + 1) % NUM_WORKERS
                     rawCapture.truncate(0)
                     #print("img " + str(in_imgs) + " put into input buffer")
@@ -85,7 +86,11 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
                     #################################################################
                     # OUTPUT LOGIC copied here
                     #################################################################
+                    if(output_buffers[curr_out_buffer].empty()):
+                        print("output buffer empty")
+                        continue
                     drift_value = output_buffers[curr_out_buffer].get()
+                    print("output image " + str(out_imgs) + "from output buffer")
                     curr_out_buffer = (curr_out_buffer + 1) % NUM_WORKERS
 
                     #print("img " + str(out_imgs) + " taken off output buffer")
@@ -108,6 +113,7 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
                     else:
                         print("Unexpected Value Obtained in Output buffer")
                     out_imgs += 1
+                    """
                     # Note: Need to tell micro that the system is drifting
                     if(left_drift_cnt >= num_drifts_thresh):
                         print("Drifting Left!!")
@@ -123,8 +129,8 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
                         GPIO.output(DRIFT_RIGHT_PIN, 0)
                     if (save):
                         ih.kill()
-
-
+                    
+                    """
         #################################################################
         # Consuming elements in the output buffer and returning drift
         # values
@@ -138,9 +144,10 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
         # right drift = 1, no drift = 0
         #################################################################
         drift_value = output_buffers[curr_out_buffer].get()
+        print("output image " + str(out_imgs) + "from output buffer")
         curr_out_buffer = (curr_out_buffer + 1) % NUM_WORKERS
 
-        print("img " + str(out_imgs) + " taken off output buffer")
+        #print("img " + str(out_imgs) + " taken off output buffer")
         #print("Drift Value from output buffer = " + str(drift_value) + ", PID: " + str(os.getpid()))
         if(drift_value == -1):
             right_drift_cnt = 0
@@ -166,6 +173,7 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
         else:
             #print("Not Drifting " + "left_cnt: " + str(left_drift_cnt) + " right_cnt: " + str(right_drift_cnt))
             print("Not Drifting")
+        
 
 
 #################################################################
