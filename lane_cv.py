@@ -50,7 +50,14 @@ def grayscale(img):
 # detection. Returns an image.
 #################################################################
 def canny(img):
-    return cv2.Canny(grayscale(img), 50, 120)
+    sigma = 0.66
+    v = np.median(img)
+    lower = int(max(0, (1.0 - sigma) * v))
+    upper = int(min(255, (1.0 + sigma) * v))
+
+    #return cv2.Canny(grayscale(img), 50, 120)
+    print("lower = " + str(lower) + " upper = " + str(upper))
+    return cv2.Canny(grayscale(img), lower, upper)
 
 
 #################################################################
@@ -71,8 +78,8 @@ def gaussian_blur(img, kernel_size):
 def roi(img):
     x = int(img.shape[1])  # width
     y = int(img.shape[0])  # height
-    topline_percent_x = 0.4  # proportion of base line you want top line of trapazoid to be  /___\
-    topline_percent_y = 0.6  # how tall you want the trapazoid to be
+    topline_percent_x = 0.3  # proportion of base line you want top line of trapazoid to be  /___\
+    topline_percent_y = 0.75  # how tall you want the trapazoid to be
     leftover = (1 - topline_percent_x) * x
     leftpoint_x = leftover / 2
     rightpoint_x = leftpoint_x + (topline_percent_x) * x
@@ -105,6 +112,37 @@ def roi(img):
     return masked_image
 
 
+
+#################################################################
+# Function: roi_return_array
+# Description: Takes an image crops a region of interest. Returns
+# masked image.
+#################################################################
+def roi_return_array(img):
+    x = int(img.shape[1])  # width
+    y = int(img.shape[0])  # height
+    topline_percent_x = 0.3  # proportion of base line you want top line of trapazoid to be  /___\
+    topline_percent_y = 0.75  # how tall you want the trapazoid to be
+    leftover = (1 - topline_percent_x) * x
+    leftpoint_x = leftover / 2
+    rightpoint_x = leftpoint_x + (topline_percent_x) * x
+    point_y = topline_percent_y * y
+
+    """
+    print("point1: (0," + str(y) + ")")
+    print("point2: (" + str(x) + "," + str(y) + ")")
+    print("point3: (" + str(x) + "," + str(y) + ")")
+    print("point4: (0," + str(y) + ")")
+    """
+    shape = np.array(
+        [[int(0), int(y)], [int(x), int(y)], [int(rightpoint_x), int(point_y)], [int(leftpoint_x), int(point_y)]])
+
+    return shape
+
+
+
+
+
 #################################################################
 # Function: resize_n_crop
 # Description: Takes in an image and reduces the resolution by
@@ -118,10 +156,12 @@ def resize_n_crop(image):
     r = new_width / image.shape[1]
     dim = (new_width, int(image.shape[0] * r))
 
-    resized = cv2.resize(image, dim)
+    #resized = cv2.resize(image, dim)
+    resized = image
     # crop image
-    crop_percent_y = 0.6  # crop this percent of image from the top half
-    cropped = resized[int(resized.shape[0] * crop_percent_y):resized.shape[0], 0:resized.shape[1]]  # img[y:y+h, x:x+w]
+    croptop_percent_y = 0  # crop this percent of image from the top half
+    cropbottom_percent_y = 0.85 #crop this percent of image from the bottom half
+    cropped = resized[int(resized.shape[0] * croptop_percent_y):int(resized.shape[0] * cropbottom_percent_y), 0:resized.shape[1]]  # img[y:y+h, x:x+w]
     return cropped
 
 
@@ -138,6 +178,7 @@ def draw_lines(img, lines, thickness=5):
     leftColor = [255, 0, 0]
     middleStatColor = [255, 255, 0]
     middleDynColor = [255, 255, 255]
+    roiColor = [0,0,0]
     drift_threshold = 50
     img_mid_point = img.shape[1] / 2
     # print(lines)
@@ -201,14 +242,28 @@ def draw_lines(img, lines, thickness=5):
         pts = np.array([[left_line_x1, int(0.65 * img.shape[0])], [left_line_x2, int(img.shape[0])],
                         [right_line_x2, int(img.shape[0])], [right_line_x1, int(0.65 * img.shape[0])]], np.int32)
         pts = pts.reshape((-1, 1, 2))
-        cv2.fillPoly(img, [pts], (0, 0, 255))
+        #cv2.fillPoly(img, [pts], (0, 0, 255))
 
+
+
+
+        # make roi polygon
+        shape = roi_return_array(img)
+        cv2.fillPoly(img, np.int32([shape]), (0,0,255))
+
+
+        # left lane line
         cv2.line(img, (left_line_x1, int(0.65 * img.shape[0])), (left_line_x2, int(img.shape[0])), leftColor, 10)
+        # right land line
         cv2.line(img, (right_line_x1, int(0.65 * img.shape[0])), (right_line_x2, int(img.shape[0])), rightColor, 10)
+        # middle of frame line (yellow)
         cv2.line(img, (midstat_line_x1, int(0.65 * img.shape[0])), (midstat_line_x2, int(img.shape[0])),
                  middleStatColor, 10)
+        # middle of lane line (white)
         cv2.line(img, (middyn_line_x1, int(0.65 * img.shape[0])), (middyn_line_x2, int(img.shape[0])), middleDynColor,
                  10)
+
+
 
     except ValueError:
         # I keep getting errors for some reason, so I put this here. Idk if the error still persists.

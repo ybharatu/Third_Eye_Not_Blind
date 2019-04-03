@@ -67,6 +67,7 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
                 # cut image and lower resolution
                 smaller_img = resize_n_crop(image)
                 input_buffers[curr_in_buffer].put(smaller_img)
+                #input_buffers[curr_in_buffer].put(image)
 
                 in_imgs += 1
                 curr_in_buffer = (curr_in_buffer + 1) % NUM_WORKERS
@@ -103,17 +104,18 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
             print("Could not detect lines")
         else:
             print("Unexpected Value Obtained in Output buffer")
-        out_imgs += 1
+
         #################################################################
         # Note: Need to tell micro that the system is drifting
         #################################################################
         if(left_drift_cnt >= num_drifts_thresh):
-            print("Drifting Left!!")
+            print("Drifting Left!! img"+ str(out_imgs))
         elif(right_drift_cnt >= num_drifts_thresh):
-            print("Drifting Right!!")
+            print("Drifting Right!! img" + str(out_imgs))
         else:
             #print("Not Drifting " + "left_cnt: " + str(left_drift_cnt) + " right_cnt: " + str(right_drift_cnt))
-            print("Not Drifting")
+            print("Not Drifting    img" + str(out_imgs))
+        out_imgs += 1
 
 
 #################################################################
@@ -145,17 +147,25 @@ def processImage(img_buf, out_buf, save, which_worker):
         #################################################################
         # Crops region of interest on image based on a polygon
         #################################################################
-        interest = roi(image)
+        #interest = roi(image)
 
         #################################################################
         # Applies a color filter to the cropped image
         #################################################################
-        filterimg = color_filter(interest)
+        #filterimg = color_filter(interest)
+        filterimg = color_filter(image)
 
         #################################################################
         # Applies Canny Edge detection on the grayscale image
         #################################################################
-        canny = cv2.Canny(grayscale(filterimg), 50, 120)
+        #canny = cv2.Canny(grayscale(filterimg), 50, 120)
+        canny_img = canny(filterimg)
+        
+        #################################################################
+        # Crops region of interest on image based on a polygon
+        #################################################################
+        interest = roi(canny_img)
+    
 
         #################################################################
         # If save flag is asserted, lane lines are drawn over the image.
@@ -163,14 +173,18 @@ def processImage(img_buf, out_buf, save, which_worker):
         # also drawn. The resulting image is then saved to a file
         #################################################################
         if save:
-            myline = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
+            #myline = hough_lines(interest, 1, np.pi / 180, 10, 20, 5)
+            myline = linedetect(interest)
             weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
-            mpimg.imsave("processed_images/aaa_"+ str(imgs) + "_worker_" + str(which_worker)+out_ext, weighted_img)
+            canny_rgb = cv2.cvtColor(interest, cv2.COLOR_GRAY2RGB)
+            weighted_img_2 = cv2.addWeighted(weighted_img, 1, canny_rgb, 0.8, 0)
+            #print("cannyrgb.shape = " + str(canny_rgb.shape))
+            mpimg.imsave("processed_images/vidimg_"+ str(imgs) + "_worker_" + str(which_worker)+out_ext, weighted_img_2)
 
         #################################################################
         # Get current drifting value based on image
         #################################################################
-        dist_off = get_drift_value(canny, 1, np.pi / 180, 10, 20, 5)
+        dist_off = get_drift_value(interest, 1, np.pi / 180, 10, 20, 5)
 
         #################################################################
         # Wait until output buffer is empty
