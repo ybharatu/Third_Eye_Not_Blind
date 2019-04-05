@@ -1,0 +1,67 @@
+int main(void)
+{
+    APP_ERROR_CHECK(NRF_LOG_INIT(NULL));
+    NRF_LOG_DEFAULT_BACKENDS_INIT();
+
+    NRF_LOG_INFO("GFX usage example application started.")
+    NRF_LOG_FLUSH();
+
+    gfx_initialization();
+    gpio_init();
+
+    screen_clear();
+
+    int offset = 100;
+    int width = 20;
+    int height = 40;
+
+    nrf_gfx_rect_t left_rect_1 = NRF_GFX_RECT(50,offset,height,width);
+    nrf_gfx_rect_t left_rect_2 = NRF_GFX_RECT(100,offset,height,width);
+    nrf_gfx_rect_t left_rect_3 = NRF_GFX_RECT(150,offset,height,width);
+
+    nrf_gfx_rect_t right_rect_1 = NRF_GFX_RECT(50,320-offset-width,height,width);
+    nrf_gfx_rect_t right_rect_2 = NRF_GFX_RECT(100,320-offset-width,height,width);
+    nrf_gfx_rect_t right_rect_3 = NRF_GFX_RECT(150,320-offset-width,height,width);
+
+    int scale = 10;
+    int start_x = 30;
+    int start_y = 40;
+    int thickness = 4;
+
+    nrf_gfx_line_t blue_1 = NRF_GFX_LINE(start_x,start_y,start_x + scale*2,start_y-scale*2,thickness);
+    nrf_gfx_line_t blue_2 = NRF_GFX_LINE(start_x + scale*2,start_y - scale*2,start_x + scale*3,start_y - scale*1,thickness);
+    nrf_gfx_line_t blue_3 = NRF_GFX_LINE(start_x - scale*1,start_y - scale*1,start_x + scale*3 + thickness,start_y - scale*1,thickness);
+    nrf_gfx_line_t blue_4 = NRF_GFX_LINE(start_x - scale*1,start_y - scale*1,start_x + scale*0,start_y - scale*2,thickness);
+    nrf_gfx_line_t blue_5 = NRF_GFX_LINE(start_x + scale*0,start_y - scale*2,start_x + scale*2,start_y - scale*0,thickness);
+
+    int circ_thick = 5;
+
+    nrf_gfx_line_t line_red = NRF_GFX_LINE(start_x,start_y - scale*3,start_x + scale*2,start_y + scale,circ_thick);
+
+    while (1)
+    { 
+      nrf_gfx_rect_draw(p_lcd, &left_rect_1,2,BLACK,false);
+      nrf_gfx_rect_draw(p_lcd, &left_rect_2,2,BLACK,false);
+      nrf_gfx_rect_draw(p_lcd, &left_rect_3,2,BLACK,false);
+
+      nrf_gfx_rect_draw(p_lcd, &right_rect_1,2,BLACK,false);
+      nrf_gfx_rect_draw(p_lcd, &right_rect_2,2,BLACK,false);
+      nrf_gfx_rect_draw(p_lcd, &right_rect_3,2,BLACK,false);
+
+      nrf_gfx_line_draw(p_lcd, &blue_1,BLUE);
+      nrf_gfx_line_draw(p_lcd, &blue_2,BLUE);
+      nrf_gfx_line_draw(p_lcd, &blue_3,BLUE);
+      nrf_gfx_line_draw(p_lcd, &blue_4,BLUE);
+      nrf_gfx_line_draw(p_lcd, &blue_5,BLUE);
+      
+      for(int i = 0; i < circ_thick; i++){
+        nrf_gfx_circle_t circle = NRF_GFX_CIRCLE(start_x+scale,start_y-scale,scale*2 - i + thickness);
+
+        nrf_gfx_circle_draw(p_lcd, &circle,RED,false);
+      }
+
+      nrf_gfx_line_draw(p_lcd, &line_red, RED);
+
+      nrf_delay_ms(2000);
+    }
+}
