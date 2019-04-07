@@ -46,6 +46,19 @@
 #ifdef USE_APP_CONFIG
 #include "app_config.h"
 #endif
+// <h> Board Support 
+
+//==========================================================
+// <q> BSP_BTN_BLE_ENABLED  - bsp_btn_ble - Button Control for BLE
+ 
+
+#ifndef BSP_BTN_BLE_ENABLED
+#define BSP_BTN_BLE_ENABLED 1
+#endif
+
+// </h> 
+//==========================================================
+
 // <h> nRF_BLE 
 
 //==========================================================
@@ -54,6 +67,13 @@
 
 #ifndef BLE_ADVERTISING_ENABLED
 #define BLE_ADVERTISING_ENABLED 1
+#endif
+
+// <q> BLE_DB_DISCOVERY_ENABLED  - ble_db_discovery - Database discovery module
+ 
+
+#ifndef BLE_DB_DISCOVERY_ENABLED
+#define BLE_DB_DISCOVERY_ENABLED 1
 #endif
 
 // <q> BLE_DTM_ENABLED  - ble_dtm - Module for testing RF/PHY using DTM commands
@@ -70,27 +90,6 @@
 #define BLE_RACP_ENABLED 0
 #endif
 
-// <e> NRF_BLE_CONN_PARAMS_ENABLED - ble_conn_params - Initiating and executing a connection parameters negotiation procedure
-//==========================================================
-#ifndef NRF_BLE_CONN_PARAMS_ENABLED
-#define NRF_BLE_CONN_PARAMS_ENABLED 1
-#endif
-// <o> NRF_BLE_CONN_PARAMS_MAX_SLAVE_LATENCY_DEVIATION - The largest acceptable deviation in slave latency. 
-// <i> The largest deviation (+ or -) from the requested slave latency that will not be renegotiated.
-
-#ifndef NRF_BLE_CONN_PARAMS_MAX_SLAVE_LATENCY_DEVIATION
-#define NRF_BLE_CONN_PARAMS_MAX_SLAVE_LATENCY_DEVIATION 499
-#endif
-
-// <o> NRF_BLE_CONN_PARAMS_MAX_SUPERVISION_TIMEOUT_DEVIATION - The largest acceptable deviation (in 10 ms units) in supervision timeout. 
-// <i> The largest deviation (+ or -, in 10 ms units) from the requested supervision timeout that will not be renegotiated.
-
-#ifndef NRF_BLE_CONN_PARAMS_MAX_SUPERVISION_TIMEOUT_DEVIATION
-#define NRF_BLE_CONN_PARAMS_MAX_SUPERVISION_TIMEOUT_DEVIATION 65535
-#endif
-
-// </e>
-
 // <q> NRF_BLE_GATT_ENABLED  - nrf_ble_gatt - GATT module
  
 
@@ -101,12 +100,113 @@
 // <e> NRF_BLE_QWR_ENABLED - nrf_ble_qwr - Queued writes support module (prepare/execute write)
 //==========================================================
 #ifndef NRF_BLE_QWR_ENABLED
-#define NRF_BLE_QWR_ENABLED 1
+#define NRF_BLE_QWR_ENABLED 0
 #endif
 // <o> NRF_BLE_QWR_MAX_ATTR - Maximum number of attribute handles that can be registered. This number must be adjusted according to the number of attributes for which Queued Writes will be enabled. If it is zero, the module will reject all Queued Write requests. 
 #ifndef NRF_BLE_QWR_MAX_ATTR
 #define NRF_BLE_QWR_MAX_ATTR 0
 #endif
+
+// </e>
+
+// <e> NRF_BLE_SCAN_ENABLED - nrf_ble_scan - Scanning Module
+//==========================================================
+#ifndef NRF_BLE_SCAN_ENABLED
+#define NRF_BLE_SCAN_ENABLED 1
+#endif
+// <o> NRF_BLE_SCAN_BUFFER - Data length for an advertising set. 
+#ifndef NRF_BLE_SCAN_BUFFER
+#define NRF_BLE_SCAN_BUFFER 31
+#endif
+
+// <o> NRF_BLE_SCAN_NAME_MAX_LEN - Maximum size for the name to search in the advertisement report. 
+#ifndef NRF_BLE_SCAN_NAME_MAX_LEN
+#define NRF_BLE_SCAN_NAME_MAX_LEN 32
+#endif
+
+// <o> NRF_BLE_SCAN_SHORT_NAME_MAX_LEN - Maximum size of the short name to search for in the advertisement report. 
+#ifndef NRF_BLE_SCAN_SHORT_NAME_MAX_LEN
+#define NRF_BLE_SCAN_SHORT_NAME_MAX_LEN 32
+#endif
+
+// <o> NRF_BLE_SCAN_SCAN_INTERVAL - Scanning interval. Determines the scan interval in units of 0.625 millisecond. 
+#ifndef NRF_BLE_SCAN_SCAN_INTERVAL
+#define NRF_BLE_SCAN_SCAN_INTERVAL 160
+#endif
+
+// <o> NRF_BLE_SCAN_SCAN_DURATION - Duration of a scanning session in units of 10 ms. Range: 0x0001 - 0xFFFF (10 ms to 10.9225 ms). If set to 0x0000, the scanning continues until it is explicitly disabled. 
+#ifndef NRF_BLE_SCAN_SCAN_DURATION
+#define NRF_BLE_SCAN_SCAN_DURATION 0
+#endif
+
+// <o> NRF_BLE_SCAN_SCAN_WINDOW - Scanning window. Determines the scanning window in units of 0.625 millisecond. 
+#ifndef NRF_BLE_SCAN_SCAN_WINDOW
+#define NRF_BLE_SCAN_SCAN_WINDOW 80
+#endif
+
+// <o> NRF_BLE_SCAN_MIN_CONNECTION_INTERVAL - Determines minimum connection interval in milliseconds. 
+#ifndef NRF_BLE_SCAN_MIN_CONNECTION_INTERVAL
+#define NRF_BLE_SCAN_MIN_CONNECTION_INTERVAL 7.5
+#endif
+
+// <o> NRF_BLE_SCAN_MAX_CONNECTION_INTERVAL - Determines maximum connection interval in milliseconds. 
+#ifndef NRF_BLE_SCAN_MAX_CONNECTION_INTERVAL
+#define NRF_BLE_SCAN_MAX_CONNECTION_INTERVAL 30
+#endif
+
+// <o> NRF_BLE_SCAN_SLAVE_LATENCY - Determines the slave latency in counts of connection events. 
+#ifndef NRF_BLE_SCAN_SLAVE_LATENCY
+#define NRF_BLE_SCAN_SLAVE_LATENCY 0
+#endif
+
+// <o> NRF_BLE_SCAN_SUPERVISION_TIMEOUT - Determines the supervision time-out in units of 10 millisecond. 
+#ifndef NRF_BLE_SCAN_SUPERVISION_TIMEOUT
+#define NRF_BLE_SCAN_SUPERVISION_TIMEOUT 4000
+#endif
+
+// <o> NRF_BLE_SCAN_SCAN_PHY  - PHY to scan on.
+ 
+// <0=> BLE_GAP_PHY_AUTO 
+// <1=> BLE_GAP_PHY_1MBPS 
+// <2=> BLE_GAP_PHY_2MBPS 
+// <4=> BLE_GAP_PHY_CODED 
+// <255=> BLE_GAP_PHY_NOT_SET 
+
+#ifndef NRF_BLE_SCAN_SCAN_PHY
+#define NRF_BLE_SCAN_SCAN_PHY 1
+#endif
+
+// <e> NRF_BLE_SCAN_FILTER_ENABLE - Enabling filters for the Scanning Module.
+//==========================================================
+#ifndef NRF_BLE_SCAN_FILTER_ENABLE
+#define NRF_BLE_SCAN_FILTER_ENABLE 1
+#endif
+// <o> NRF_BLE_SCAN_UUID_CNT - Number of filters for UUIDs. 
+#ifndef NRF_BLE_SCAN_UUID_CNT
+#define NRF_BLE_SCAN_UUID_CNT 0
+#endif
+
+// <o> NRF_BLE_SCAN_NAME_CNT - Number of name filters. 
+#ifndef NRF_BLE_SCAN_NAME_CNT
+#define NRF_BLE_SCAN_NAME_CNT 1
+#endif
+
+// <o> NRF_BLE_SCAN_SHORT_NAME_CNT - Number of short name filters. 
+#ifndef NRF_BLE_SCAN_SHORT_NAME_CNT
+#define NRF_BLE_SCAN_SHORT_NAME_CNT 0
+#endif
+
+// <o> NRF_BLE_SCAN_ADDRESS_CNT - Number of address filters. 
+#ifndef NRF_BLE_SCAN_ADDRESS_CNT
+#define NRF_BLE_SCAN_ADDRESS_CNT 0
+#endif
+
+// <o> NRF_BLE_SCAN_APPEARANCE_CNT - Number of appearance filters. 
+#ifndef NRF_BLE_SCAN_APPEARANCE_CNT
+#define NRF_BLE_SCAN_APPEARANCE_CNT 0
+#endif
+
+// </e>
 
 // </e>
 
@@ -412,14 +512,14 @@
  
 
 #ifndef BLE_LBS_C_ENABLED
-#define BLE_LBS_C_ENABLED 0
+#define BLE_LBS_C_ENABLED 1
 #endif
 
 // <q> BLE_LBS_ENABLED  - ble_lbs - LED Button Service
  
 
 #ifndef BLE_LBS_ENABLED
-#define BLE_LBS_ENABLED 1
+#define BLE_LBS_ENABLED 0
 #endif
 
 // <q> BLE_LLS_ENABLED  - ble_lls - Link Loss Service
@@ -1885,7 +1985,7 @@
 #endif
 // <o> NRFX_GPIOTE_CONFIG_NUM_OF_LOW_POWER_EVENTS - Number of lower power input pins 
 #ifndef NRFX_GPIOTE_CONFIG_NUM_OF_LOW_POWER_EVENTS
-#define NRFX_GPIOTE_CONFIG_NUM_OF_LOW_POWER_EVENTS 1
+#define NRFX_GPIOTE_CONFIG_NUM_OF_LOW_POWER_EVENTS 4
 #endif
 
 // <o> NRFX_GPIOTE_CONFIG_IRQ_PRIORITY  - Interrupt priority
@@ -3225,11 +3325,14 @@
 
 // <e> NRFX_SPIM_ENABLED - nrfx_spim - SPIM peripheral driver
 //==========================================================
-
+#ifndef NRFX_SPIM_ENABLED
+#define NRFX_SPIM_ENABLED 0
+#endif
 // <q> NRFX_SPIM0_ENABLED  - Enable SPIM0 instance
+ 
 
 #ifndef NRFX_SPIM0_ENABLED
-#define NRFX_SPIM0_ENABLED 1
+#define NRFX_SPIM0_ENABLED 0
 #endif
 
 // <q> NRFX_SPIM1_ENABLED  - Enable SPIM1 instance
@@ -3463,13 +3566,13 @@
 // <e> NRFX_SPI_ENABLED - nrfx_spi - SPI peripheral driver
 //==========================================================
 #ifndef NRFX_SPI_ENABLED
-#define NRFX_SPI_ENABLED 1
+#define NRFX_SPI_ENABLED 0
 #endif
 // <q> NRFX_SPI0_ENABLED  - Enable SPI0 instance
  
 
 #ifndef NRFX_SPI0_ENABLED
-#define NRFX_SPI0_ENABLED 1
+#define NRFX_SPI0_ENABLED 0
 #endif
 
 // <q> NRFX_SPI1_ENABLED  - Enable SPI1 instance
@@ -3673,14 +3776,19 @@
 
 // <e> NRFX_TIMER_ENABLED - nrfx_timer - TIMER periperal driver
 //==========================================================
+
 #ifndef NRFX_TIMER_ENABLED
 #define NRFX_TIMER_ENABLED 1
 #endif
+
+//#ifndef TIMER_ENABLED
+//#define TIMER_ENABLED 1
+//#endif
 // <q> NRFX_TIMER0_ENABLED  - Enable TIMER0 instance
  
 
 #ifndef NRFX_TIMER0_ENABLED
-#define NRFX_TIMER0_ENABLED 1
+#define NRFX_TIMER0_ENABLED 0
 #endif
 
 // <q> NRFX_TIMER1_ENABLED  - Enable TIMER1 instance
@@ -3690,6 +3798,10 @@
 #define NRFX_TIMER1_ENABLED 1
 #endif
 
+//#ifndef TIMER1_ENABLED
+//#define TIMER1_ENABLED 1
+//#endif
+
 // <q> NRFX_TIMER2_ENABLED  - Enable TIMER2 instance
  
 
@@ -3697,11 +3809,15 @@
 #define NRFX_TIMER2_ENABLED 1
 #endif
 
+//#ifndef TIMER2_ENABLED
+//#define TIMER2_ENABLED 1
+//#endif
+
 // <q> NRFX_TIMER3_ENABLED  - Enable TIMER3 instance
  
 
 #ifndef NRFX_TIMER3_ENABLED
-#define NRFX_TIMER3_ENABLED 1
+#define NRFX_TIMER3_ENABLED 0
 #endif
 
 // <q> NRFX_TIMER4_ENABLED  - Enable TIMER4 instance
@@ -3815,69 +3931,6 @@
 // </e>
 
 // </e>
-
-/////instances
-#define NRFX_TIMER_INSTANCE(id)                                   \
-{                                                                 \
-    .p_reg            = NRFX_CONCAT_2(NRF_TIMER, id),             \
-    .instance_id      = NRFX_CONCAT_3(NRFX_TIMER, id, _INST_IDX), \
-    .cc_channel_count = NRF_TIMER_CC_CHANNEL_COUNT(id),           \
-}
-
-#define VCC 3.3
-
-#ifndef ILI9341_SPI_INSTANCE
-#define ILI9341_SPI_INSTANCE 0
-#endif
-
-#ifndef LVEZ4_AN_PIN
-#define LVEZ4_AN_PIN 3
-#endif
-
-#ifndef ILI9341_WIDTH
-#define ILI9341_WIDTH 240
-#endif
-
-#ifndef ILI9341_HEIGHT
-#define ILI9341_HEIGHT 320
-#endif
-
-#define NRF_GFX_ENABLED 1
-
-#ifndef ILI9341_ENABLED
-#define ILI9341_ENABLED 1
-#endif
-
-#ifndef SPI_CONFIGURATION
-#define SPI_CONFIGURATION 1
-#endif
-
-#ifndef ILI9341_SCK_PIN
-#define ILI9341_SCK_PIN 27
-#endif
-
-#ifndef ILI9341_MISO_PIN
-#define ILI9341_MISO_PIN 26
-#endif
-
-#ifndef ILI9341_MOSI_PIN
-#define ILI9341_MOSI_PIN 25
-#endif
-
-#ifndef ILI9341_SS_PIN
-#define ILI9341_SS_PIN 24
-#endif
-
-#ifndef ILI9341_DC_PIN
-#define ILI9341_DC_PIN 23
-#endif
-
-#ifndef ILI9341_BL_PIN
-#define ILI9341_BL_PIN 13
-#endif
-
-
-
 
 // <e> NRFX_TWIM_ENABLED - nrfx_twim - TWIM peripheral driver
 //==========================================================
@@ -5191,7 +5244,7 @@
 // <e> SAADC_ENABLED - nrf_drv_saadc - SAADC peripheral driver - legacy layer
 //==========================================================
 #ifndef SAADC_ENABLED
-#define SAADC_ENABLED 0
+#define SAADC_ENABLED 1
 #endif
 // <o> SAADC_CONFIG_RESOLUTION  - Resolution
  
@@ -5245,6 +5298,63 @@
 #endif
 
 // </e>
+
+#define NRFX_TIMER_INSTANCE(id)                                   \
+{                                                                 \
+    .p_reg            = NRFX_CONCAT_2(NRF_TIMER, id),             \
+    .instance_id      = NRFX_CONCAT_3(NRFX_TIMER, id, _INST_IDX), \
+    .cc_channel_count = NRF_TIMER_CC_CHANNEL_COUNT(id),           \
+}
+
+#ifndef ILI9341_SPI_INSTANCE
+#define ILI9341_SPI_INSTANCE 0
+#endif
+
+#ifndef LVEZ4_AN_PIN
+#define LVEZ4_AN_PIN 3
+#endif
+
+#ifndef ILI9341_WIDTH
+#define ILI9341_WIDTH 240
+#endif
+
+#ifndef ILI9341_HEIGHT
+#define ILI9341_HEIGHT 320
+#endif
+
+#define NRF_GFX_ENABLED 1
+
+#ifndef ILI9341_ENABLED
+#define ILI9341_ENABLED 1
+#endif
+
+#ifndef SPI_CONFIGURATION
+#define SPI_CONFIGURATION 1
+#endif
+
+#ifndef ILI9341_SCK_PIN
+#define ILI9341_SCK_PIN 26
+#endif
+
+#ifndef ILI9341_MISO_PIN
+#define ILI9341_MISO_PIN 27
+#endif
+
+#ifndef ILI9341_MOSI_PIN
+#define ILI9341_MOSI_PIN 28
+#endif
+
+#ifndef ILI9341_SS_PIN
+#define ILI9341_SS_PIN 29
+#endif
+
+#ifndef ILI9341_DC_PIN
+#define ILI9341_DC_PIN 30
+#endif
+
+#ifndef ILI9341_BL_PIN
+#define ILI9341_BL_PIN 25
+#endif
 
 // <e> SPIS_ENABLED - nrf_drv_spis - SPIS peripheral driver - legacy layer
 //==========================================================
@@ -5425,6 +5535,132 @@
 
 #ifndef SPIM_NRF52_ANOMALY_109_WORKAROUND_ENABLED
 #define SPIM_NRF52_ANOMALY_109_WORKAROUND_ENABLED 0
+#endif
+
+// </e>
+
+// </e>
+
+// <e> SPI2_ENABLED - Enable SPI2 instance
+//==========================================================
+#ifndef SPI2_ENABLED
+#define SPI2_ENABLED 0
+#endif
+// <q> SPI2_USE_EASY_DMA  - Use EasyDMA
+ 
+
+#ifndef SPI2_USE_EASY_DMA
+#define SPI2_USE_EASY_DMA 1
+#endif
+
+// </e>
+
+// <q> SPIM_NRF52_ANOMALY_109_WORKAROUND_ENABLED  - Enables nRF52 anomaly 109 workaround for SPIM.
+ 
+
+// <i> The workaround uses interrupts to wake up the CPU by catching
+// <i> a start event of zero-length transmission to start the clock. This 
+// <i> ensures that the DMA transfer will be executed without issues and
+// <i> that the proper transfer will be started. See more in the Errata 
+// <i> document or Anomaly 109 Addendum located at 
+// <i> https://infocenter.nordicsemi.com/
+
+#ifndef SPIM_NRF52_ANOMALY_109_WORKAROUND_ENABLED
+#define SPIM_NRF52_ANOMALY_109_WORKAROUND_ENABLED 0
+#endif
+
+// </e>
+
+// <e> TIMER_ENABLED - nrf_drv_timer - TIMER periperal driver - legacy layer
+//==========================================================
+
+// <o> TIMER_DEFAULT_CONFIG_FREQUENCY  - Timer frequency if in Timer mode
+ 
+// <0=> 16 MHz 
+// <1=> 8 MHz 
+// <2=> 4 MHz 
+// <3=> 2 MHz 
+// <4=> 1 MHz 
+// <5=> 500 kHz 
+// <6=> 250 kHz 
+// <7=> 125 kHz 
+// <8=> 62.5 kHz 
+// <9=> 31.25 kHz 
+
+#ifndef TIMER_DEFAULT_CONFIG_FREQUENCY
+#define TIMER_DEFAULT_CONFIG_FREQUENCY 0
+#endif
+
+// <o> TIMER_DEFAULT_CONFIG_MODE  - Timer mode or operation
+ 
+// <0=> Timer 
+// <1=> Counter 
+
+#ifndef TIMER_DEFAULT_CONFIG_MODE
+#define TIMER_DEFAULT_CONFIG_MODE 0
+#endif
+
+// <o> TIMER_DEFAULT_CONFIG_BIT_WIDTH  - Timer counter bit width
+ 
+// <0=> 16 bit 
+// <1=> 8 bit 
+// <2=> 24 bit 
+// <3=> 32 bit 
+
+#ifndef TIMER_DEFAULT_CONFIG_BIT_WIDTH
+#define TIMER_DEFAULT_CONFIG_BIT_WIDTH 0
+#endif
+
+// <o> TIMER_DEFAULT_CONFIG_IRQ_PRIORITY  - Interrupt priority
+ 
+
+// <i> Priorities 0,2 (nRF51) and 0,1,4,5 (nRF52) are reserved for SoftDevice
+// <0=> 0 (highest) 
+// <1=> 1 
+// <2=> 2 
+// <3=> 3 
+// <4=> 4 
+// <5=> 5 
+// <6=> 6 
+// <7=> 7 
+
+#ifndef TIMER_DEFAULT_CONFIG_IRQ_PRIORITY
+#define TIMER_DEFAULT_CONFIG_IRQ_PRIORITY 6
+#endif
+
+// <q> TIMER0_ENABLED  - Enable TIMER0 instance
+ 
+
+#ifndef TIMER0_ENABLED
+#define TIMER0_ENABLED 0
+#endif
+
+// <q> TIMER1_ENABLED  - Enable TIMER1 instance
+ 
+
+#ifndef TIMER1_ENABLED
+#define TIMER1_ENABLED 0
+#endif
+
+// <q> TIMER2_ENABLED  - Enable TIMER2 instance
+ 
+
+#ifndef TIMER2_ENABLED
+#define TIMER2_ENABLED 0
+#endif
+
+// <q> TIMER3_ENABLED  - Enable TIMER3 instance
+ 
+
+#ifndef TIMER3_ENABLED
+#define TIMER3_ENABLED 0
+#endif
+
+// <q> TIMER4_ENABLED  - Enable TIMER4 instance
+ 
+
+#ifndef TIMER4_ENABLED
+#define TIMER4_ENABLED 0
 #endif
 
 // </e>
@@ -6527,7 +6763,7 @@
 
 // <o> HCI_UART_RTS_PIN - UART RTS pin 
 #ifndef HCI_UART_RTS_PIN
-#define HCI_UART_RTS_PIN 5
+#define HCI_UART_RTS_PIN 12
 #endif
 
 // <o> HCI_UART_CTS_PIN - UART CTS pin 
@@ -7148,7 +7384,7 @@
  
 
 #ifndef BUTTON_ENABLED
-#define BUTTON_ENABLED 1
+#define BUTTON_ENABLED 0
 #endif
 
 // <q> BUTTON_HIGH_ACCURACY_ENABLED  - Enables GPIOTE high accuracy for buttons
@@ -11928,19 +12164,19 @@
 
 // <o> NRF_SDH_BLE_PERIPHERAL_LINK_COUNT - Maximum number of peripheral links. 
 #ifndef NRF_SDH_BLE_PERIPHERAL_LINK_COUNT
-#define NRF_SDH_BLE_PERIPHERAL_LINK_COUNT 1
+#define NRF_SDH_BLE_PERIPHERAL_LINK_COUNT 0
 #endif
 
 // <o> NRF_SDH_BLE_CENTRAL_LINK_COUNT - Maximum number of central links. 
 #ifndef NRF_SDH_BLE_CENTRAL_LINK_COUNT
-#define NRF_SDH_BLE_CENTRAL_LINK_COUNT 0
+#define NRF_SDH_BLE_CENTRAL_LINK_COUNT 2
 #endif
 
 // <o> NRF_SDH_BLE_TOTAL_LINK_COUNT - Total link count. 
 // <i> Maximum number of total concurrent connections using the default configuration.
 
 #ifndef NRF_SDH_BLE_TOTAL_LINK_COUNT
-#define NRF_SDH_BLE_TOTAL_LINK_COUNT 1
+#define NRF_SDH_BLE_TOTAL_LINK_COUNT 2
 #endif
 
 // <o> NRF_SDH_BLE_GAP_EVENT_LENGTH - GAP event length. 
@@ -11957,7 +12193,7 @@
 
 // <o> NRF_SDH_BLE_GATTS_ATTR_TAB_SIZE - Attribute Table size in bytes. The size must be a multiple of 4. 
 #ifndef NRF_SDH_BLE_GATTS_ATTR_TAB_SIZE
-#define NRF_SDH_BLE_GATTS_ATTR_TAB_SIZE 1408
+#define NRF_SDH_BLE_GATTS_ATTR_TAB_SIZE 248
 #endif
 
 // <o> NRF_SDH_BLE_VS_UUID_COUNT - The number of vendor-specific UUIDs. 
@@ -12211,132 +12447,6 @@
 
 #ifndef BSP_BTN_BLE_OBSERVER_PRIO
 #define BSP_BTN_BLE_OBSERVER_PRIO 1
-#endif
-
-// <o> NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO  
-// <i> Priority with which BLE events are dispatched to the NFC pairing library.
-
-#ifndef NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO
-#define NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO 1
-#endif
-
-// <o> NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO  
-// <i> Priority with which BLE events are dispatched to the NFC pairing library.
-
-#ifndef NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO
-#define NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO 1
-#endif
-
-// <o> NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO  
-// <i> Priority with which BLE events are dispatched to the NFC pairing library.
-
-#ifndef NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO
-#define NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO 1
-#endif
-
-// <o> NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO  
-// <i> Priority with which BLE events are dispatched to the NFC pairing library.
-
-#ifndef NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO
-#define NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO 1
-#endif
-
-// <o> NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO  
-// <i> Priority with which BLE events are dispatched to the NFC pairing library.
-
-#ifndef NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO
-#define NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO 1
-#endif
-
-// <o> NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO  
-// <i> Priority with which BLE events are dispatched to the NFC pairing library.
-
-#ifndef NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO
-#define NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO 1
-#endif
-
-// <o> NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO  
-// <i> Priority with which BLE events are dispatched to the NFC pairing library.
-
-#ifndef NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO
-#define NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO 1
-#endif
-
-// <o> NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO  
-// <i> Priority with which BLE events are dispatched to the NFC pairing library.
-
-#ifndef NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO
-#define NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO 1
-#endif
-
-// <o> NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO  
-// <i> Priority with which BLE events are dispatched to the NFC pairing library.
-
-#ifndef NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO
-#define NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO 1
-#endif
-
-// <o> NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO  
-// <i> Priority with which BLE events are dispatched to the NFC pairing library.
-
-#ifndef NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO
-#define NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO 1
-#endif
-
-// <o> NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO  
-// <i> Priority with which BLE events are dispatched to the NFC pairing library.
-
-#ifndef NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO
-#define NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO 1
-#endif
-
-// <o> NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO  
-// <i> Priority with which BLE events are dispatched to the NFC pairing library.
-
-#ifndef NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO
-#define NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO 1
-#endif
-
-// <o> NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO  
-// <i> Priority with which BLE events are dispatched to the NFC pairing library.
-
-#ifndef NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO
-#define NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO 1
-#endif
-
-// <o> NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO  
-// <i> Priority with which BLE events are dispatched to the NFC pairing library.
-
-#ifndef NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO
-#define NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO 1
-#endif
-
-// <o> NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO  
-// <i> Priority with which BLE events are dispatched to the NFC pairing library.
-
-#ifndef NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO
-#define NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO 1
-#endif
-
-// <o> NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO  
-// <i> Priority with which BLE events are dispatched to the NFC pairing library.
-
-#ifndef NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO
-#define NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO 1
-#endif
-
-// <o> NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO  
-// <i> Priority with which BLE events are dispatched to the NFC pairing library.
-
-#ifndef NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO
-#define NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO 1
-#endif
-
-// <o> NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO  
-// <i> Priority with which BLE events are dispatched to the NFC pairing library.
-
-#ifndef NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO
-#define NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO 1
 #endif
 
 // <o> NFC_BLE_PAIR_LIB_BLE_OBSERVER_PRIO  
