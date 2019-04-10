@@ -37,6 +37,7 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
     # output_buffers = [output_img_1, output_img_2]
     in_imgs = 0
     out_imgs = 0
+    img_print_num = 0
     left_drift_cnt = 0
     right_drift_cnt = 0
     vidcap = cv2.VideoCapture(filename)
@@ -89,6 +90,7 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
         drift_value = output_buffers[curr_out_buffer].get()
         curr_out_buffer = (curr_out_buffer + 1) % NUM_WORKERS
 
+
         #print("img " + str(out_imgs) + " taken off output buffer")
         #print("Drift Value from output buffer = " + str(drift_value) + ", PID: " + str(os.getpid()))
         if(drift_value == -1):
@@ -102,6 +104,10 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
             left_drift_cnt = 0
         elif (drift_value == 3):
             print("Could not detect lines")
+            out_imgs += 1
+            if not out_imgs % 2:
+                img_print_num += 1
+            continue
         else:
             print("Unexpected Value Obtained in Output buffer")
 
@@ -109,13 +115,15 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
         # Note: Need to tell micro that the system is drifting
         #################################################################
         if(left_drift_cnt >= num_drifts_thresh):
-            print("Drifting Left!! img"+ str(out_imgs))
+            print("Drifting Left!! img"+ str(img_print_num))
         elif(right_drift_cnt >= num_drifts_thresh):
-            print("Drifting Right!! img" + str(out_imgs))
+            print("Drifting Right!! img" + str(img_print_num))
         else:
             #print("Not Drifting " + "left_cnt: " + str(left_drift_cnt) + " right_cnt: " + str(right_drift_cnt))
-            print("Not Drifting    img" + str(out_imgs))
+            print("Not Drifting    img" + str(img_print_num))
         out_imgs += 1
+        if not out_imgs%2:
+            img_print_num += 1
 
 
 #################################################################
@@ -173,6 +181,7 @@ def processImage(img_buf, out_buf, save, which_worker):
         # also drawn. The resulting image is then saved to a file
         #################################################################
         if save:
+            print("Working on img" + str(imgs) + " worker " + str(which_worker))
             #myline = hough_lines(interest, 1, np.pi / 180, 10, 20, 5)
             myline = linedetect(interest)
             weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
@@ -184,8 +193,8 @@ def processImage(img_buf, out_buf, save, which_worker):
         #################################################################
         # Get current drifting value based on image
         #################################################################
-        dist_off = get_drift_value(interest, 1, np.pi / 180, 10, 20, 5)
-
+        #dist_off = get_drift_value(interest, 1, np.pi / 180, 10, 20, 5)
+        dist_off = 0
         #################################################################
         # Wait until output buffer is empty
         #################################################################

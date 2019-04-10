@@ -15,6 +15,7 @@ try:
 except RuntimeError:
     print("Error importing RPi.GPIO!  This is probably because you need superuser privileges.  You can achieve this by using 'sudo' to run your script")
 except ImportError:
+    gpio_flag = False
     print("RPi is not installed. It can only be installed on linux enviornments")
 
 #################################################################
@@ -50,6 +51,7 @@ def main(argv):
     save = False
     live = False
     im = False
+
     try:
         opts, args = getopt.getopt(argv, "hv:sli:f:", ["help", "video", "save", "live", "image", "filename="])
     except getopt.GetoptError:
@@ -99,7 +101,8 @@ def main(argv):
     #################################################################
     # Sets up GPIO pins
     #################################################################
-    GPIO_setup()
+    if gpio_flag:
+        GPIO_setup()
 
     #################################################################
     # Creates Multiprocessing Queues and processes
@@ -142,7 +145,8 @@ def main(argv):
     #################################################################
     # Cleans up GPIO Resources
     #################################################################
-    GPIO_cleanup()
+    if gpio_flag:
+        GPIO_cleanup()
 
 
 if __name__ == "__main__":

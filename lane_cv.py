@@ -50,14 +50,18 @@ def grayscale(img):
 # detection. Returns an image.
 #################################################################
 def canny(img):
-    sigma = 0.66
-    v = np.median(img)
+    sigma = 0.4
+    grayimg = grayscale(img)
+    v = np.median(grayimg)
     lower = int(max(0, (1.0 - sigma) * v))
     upper = int(min(255, (1.0 + sigma) * v))
+    if (upper == 0 or lower == 0):
+        upper = 120
+        lower = 50
 
     #return cv2.Canny(grayscale(img), 50, 120)
-    print("lower = " + str(lower) + " upper = " + str(upper))
-    return cv2.Canny(grayscale(img), lower, upper)
+    #print("lower = " + str(lower) + " upper = " + str(upper))
+    return cv2.Canny(grayimg, lower, upper)
 
 
 #################################################################
@@ -79,7 +83,7 @@ def roi(img):
     x = int(img.shape[1])  # width
     y = int(img.shape[0])  # height
     topline_percent_x = 0.3  # proportion of base line you want top line of trapazoid to be  /___\
-    topline_percent_y = 0.75  # how tall you want the trapazoid to be
+    topline_percent_y = 0.80  # how tall you want the trapazoid to be
     leftover = (1 - topline_percent_x) * x
     leftpoint_x = leftover / 2
     rightpoint_x = leftpoint_x + (topline_percent_x) * x
@@ -122,7 +126,7 @@ def roi_return_array(img):
     x = int(img.shape[1])  # width
     y = int(img.shape[0])  # height
     topline_percent_x = 0.3  # proportion of base line you want top line of trapazoid to be  /___\
-    topline_percent_y = 0.75  # how tall you want the trapazoid to be
+    topline_percent_y = 0.80  # how tall you want the trapazoid to be
     leftover = (1 - topline_percent_x) * x
     leftpoint_x = leftover / 2
     rightpoint_x = leftpoint_x + (topline_percent_x) * x
@@ -160,7 +164,7 @@ def resize_n_crop(image):
     resized = image
     # crop image
     croptop_percent_y = 0  # crop this percent of image from the top half
-    cropbottom_percent_y = 0.85 #crop this percent of image from the bottom half
+    cropbottom_percent_y = 0.8 #crop this percent of image from the bottom half
     cropped = resized[int(resized.shape[0] * croptop_percent_y):int(resized.shape[0] * cropbottom_percent_y), 0:resized.shape[1]]  # img[y:y+h, x:x+w]
     return cropped
 
@@ -173,63 +177,83 @@ def resize_n_crop(image):
 #################################################################
 def draw_lines(img, lines, thickness=5):
     global rightSlope, leftSlope, rightIntercept, leftIntercept
+    # rightSlope = []
+    # leftSlope = []
+    # rightIntercept = []
+    # leftIntercept = []
     img_mid_point = img.shape[1] / 2
+    num_frame_persist = 5
     rightColor = [0, 255, 0]
     leftColor = [255, 0, 0]
     middleStatColor = [255, 255, 0]
     middleDynColor = [255, 255, 255]
+    houghcolor = [255, 0, 255]
     roiColor = [0,0,0]
     drift_threshold = 50
     img_mid_point = img.shape[1] / 2
-    # print(lines)
+    #print("img_mid_point = " + str(img_mid_point))
+    lines_height_percent = 0.80
+    #print("img.shape[0] = " + str(img.shape[0]) + "img.shape[1] = " + str(img.shape[1]))
     # this is used to filter out the outlying lines that can affect the average
     # We then use the slope we determined to find the y-intercept of the filtered lines by solving for b in y=mx+b
     for line in lines:
         for x1, y1, x2, y2 in line:
+            #print("x1: " + str(x1) + "x2: " + str(x2) + "y1: " + str(y1) + "y2: " + str(y2))
             denom = x1 - x2
             if denom == 0:
                 # print("divided by zero in draw_lines")
                 continue
             slope = (y1 - y2) / denom
 
-            if slope > 0.3:
+            if slope > 0.4 and slope < 2:
                 if x1 > img_mid_point:
                     yintercept = y2 - (slope * x2)
-                    rightSlope.append(slope)
-                    rightIntercept.append(yintercept)
+                    extended_line_x1 = int((lines_height_percent * img.shape[0] - yintercept) / slope)
+                    if extended_line_x1 > img_mid_point+5:
+                        print("right slope = " + str(slope) + " x1 = " + str(extended_line_x1) + " midpoint = " + str(img_mid_point))
+                        cv2.line(img, (x1, y1), (x2, y2), houghcolor, 5)
+                        rightSlope.append(slope)
+                        rightIntercept.append(yintercept)
                 else:
                     None
-            elif slope < -0.3:
+            elif slope < -0.4 and slope > -2:
                 if x1 < img_mid_point:
                     yintercept = y2 - (slope * x2)
-                    leftSlope.append(slope)
-                    leftIntercept.append(yintercept)
+                    extended_line_x1 = int((lines_height_percent * img.shape[0] - yintercept) / slope)
+                    if extended_line_x1 < img_mid_point-5:
+                        print("left slope = " + str(slope) + " x1 = " + str(extended_line_x1) + " midpoint = " + str(img_mid_point))
+                        cv2.line(img, (x1, y1), (x2, y2), houghcolor, 5)
+                        leftSlope.append(slope)
+                        leftIntercept.append(yintercept)
 
+    # print("leftSlope = " + leftSlope + "  rightSlope = " + rightSlope)
+    print("------------")
+    print(leftSlope)
+    print(rightSlope)
+    print("------------")
     if len(leftSlope) == 0:
-        print("not enough left slope lines")
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!")
-        # sys.exit(1)
+        # print("not enough left slope lines")
+        # print("!!!!!!!!!!!!!!!!!!!!!!!!!")
         return
     elif len(rightSlope) == 0:
-        print("not enough right slope lines")
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!")
-        # sys.exit(1)
+        # print("not enough right slope lines")
+        # print("!!!!!!!!!!!!!!!!!!!!!!!!!")
         return
 
         # We use slicing operators and np.mean() to find the averages of the 30 previous frames
     # This makes the lines more stable, and less likely to shift rapidly
-    leftavgSlope = np.mean(leftSlope[-30:])
-    leftavgIntercept = np.mean(leftIntercept[-30:])
+    leftavgSlope = np.mean(leftSlope[-num_frame_persist:])
+    leftavgIntercept = np.mean(leftIntercept[-num_frame_persist:])
 
-    rightavgSlope = np.mean(rightSlope[-30:])
-    rightavgIntercept = np.mean(rightIntercept[-30:])
+    rightavgSlope = np.mean(rightSlope[-num_frame_persist:])
+    rightavgIntercept = np.mean(rightIntercept[-num_frame_persist:])
 
     # Here we plot the lines and the shape of the lane using the average slope and intercepts
     try:
-        left_line_x1 = int((0.65 * img.shape[0] - leftavgIntercept) / leftavgSlope)
+        left_line_x1 = int((lines_height_percent * img.shape[0] - leftavgIntercept) / leftavgSlope)
         left_line_x2 = int((img.shape[0] - leftavgIntercept) / leftavgSlope)
 
-        right_line_x1 = int((0.65 * img.shape[0] - rightavgIntercept) / rightavgSlope)
+        right_line_x1 = int((lines_height_percent * img.shape[0] - rightavgIntercept) / rightavgSlope)
         right_line_x2 = int((img.shape[0] - rightavgIntercept) / rightavgSlope)
 
         midstat_line_x1 = int((img.shape[1] / 2))
@@ -239,28 +263,26 @@ def draw_lines(img, lines, thickness=5):
         middyn_line_x1 = int(((left_line_x1 + right_line_x1) / 2))
         middyn_line_x2 = middyn_line_x1
 
-        pts = np.array([[left_line_x1, int(0.65 * img.shape[0])], [left_line_x2, int(img.shape[0])],
-                        [right_line_x2, int(img.shape[0])], [right_line_x1, int(0.65 * img.shape[0])]], np.int32)
-        pts = pts.reshape((-1, 1, 2))
+        pts = np.array([[left_line_x1, int(lines_height_percent * img.shape[0])], [left_line_x2, int(img.shape[0])],
+                        [right_line_x2, int(img.shape[0])], [right_line_x1, int(lines_height_percent * img.shape[0])]], np.int32)
+        #pts = pts.resha                              pe((-1, 1, 2))
         #cv2.fillPoly(img, [pts], (0, 0, 255))
-
-
 
 
         # make roi polygon
         shape = roi_return_array(img)
-        cv2.fillPoly(img, np.int32([shape]), (0,0,255))
+        #cv2.fillPoly(img, np.int32([shape]), (0,0,255))
 
 
         # left lane line
-        cv2.line(img, (left_line_x1, int(0.65 * img.shape[0])), (left_line_x2, int(img.shape[0])), leftColor, 10)
-        # right land line
-        cv2.line(img, (right_line_x1, int(0.65 * img.shape[0])), (right_line_x2, int(img.shape[0])), rightColor, 10)
+        cv2.line(img, (left_line_x1, int(lines_height_percent * img.shape[0])), (left_line_x2, int(img.shape[0])), leftColor, 10)
+        # right lane line
+        cv2.line(img, (right_line_x1, int(lines_height_percent * img.shape[0])), (right_line_x2, int(img.shape[0])), rightColor, 10)
         # middle of frame line (yellow)
-        cv2.line(img, (midstat_line_x1, int(0.65 * img.shape[0])), (midstat_line_x2, int(img.shape[0])),
+        cv2.line(img, (midstat_line_x1, int(lines_height_percent * img.shape[0])), (midstat_line_x2, int(img.shape[0])),
                  middleStatColor, 10)
         # middle of lane line (white)
-        cv2.line(img, (middyn_line_x1, int(0.65 * img.shape[0])), (middyn_line_x2, int(img.shape[0])), middleDynColor,
+        cv2.line(img, (middyn_line_x1, int(lines_height_percent * img.shape[0])), (middyn_line_x2, int(img.shape[0])), middleDynColor,
                  10)
 
 
@@ -279,12 +301,15 @@ def draw_lines(img, lines, thickness=5):
 def find_position_in_lines(img, lines):
     global rightSlope, leftSlope, rightIntercept, leftIntercept
     drift_threshold = 45
+    lines_height_percent = 0.75
     img_mid_point = img.shape[1] / 2
+
 
     # this is used to filter out the outlying lines that can affect the average
     # We then use the slope we determined to find the y-intercept of the filtered lines by solving for b in y=mx+b
     if(lines is None):
-        return 3;
+        print("empty lines from hough lines")
+        return 3
     for line in lines:
         for x1, y1, x2, y2 in line:
             denom = x1 - x2
@@ -294,14 +319,14 @@ def find_position_in_lines(img, lines):
             slope = (y1 - y2) / denom
 
             # print("slope = " + str(slope))
-            if slope > 0.2:
+            if slope > 0.5:
                 if x1 > img_mid_point:
                     yintercept = y2 - (slope * x2)
                     rightSlope.append(slope)
                     rightIntercept.append(yintercept)
                 else:
                     None
-            elif slope < -0.2:
+            elif slope < -0.5:
                 if x1 < img_mid_point:
                     yintercept = y2 - (slope * x2)
                     leftSlope.append(slope)
@@ -325,9 +350,9 @@ def find_position_in_lines(img, lines):
         rightavgSlope = np.mean(rightSlope[-30:])
         rightavgIntercept = np.mean(rightIntercept[-30:])
 
-        left_line_x1 = int((0.65 * img.shape[0] - leftavgIntercept) / leftavgSlope)
+        left_line_x1 = int((lines_height_percent * img.shape[0] - leftavgIntercept) / leftavgSlope)
 
-        right_line_x1 = int((0.65 * img.shape[0] - rightavgIntercept) / rightavgSlope)
+        right_line_x1 = int((lines_height_percent * img.shape[0] - rightavgIntercept) / rightavgSlope)
 
         center_line_x = int((img.shape[1] / 2))
 
