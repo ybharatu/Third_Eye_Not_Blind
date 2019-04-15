@@ -152,13 +152,18 @@
 
 #define VCC 3.3
 
-#define TEST_LED                        22
+#define TEST_LED                        16
+#define LEFT_LED                        16
+#define RIGHT_LED                       15
+#define SENSOR_PIN                      6
+#define PWM_PIN                         17
 
 #define APP_BLE_OBSERVER_PRIO           3                                       /**< Application's BLE observer priority. You shouldn't need to modify this value. */
 #define APP_BLE_CONN_CFG_TAG            1                                       /**< A tag identifying the SoftDevice BLE configuration. */
 
 #define APP_ADV_INTERVAL                64                                      /**< The advertising interval (in units of 0.625 ms; this value corresponds to 40 ms). */
 #define APP_ADV_DURATION                BLE_GAP_ADV_TIMEOUT_GENERAL_UNLIMITED   /**< The advertising time-out (in units of seconds). When set to 0, we will never time out. */
+#define BUFFER_SIZE                     20
 
 
 #define MIN_CONN_INTERVAL               MSEC_TO_UNITS(100, UNIT_1_25_MS)        /**< Minimum acceptable connection interval (0.5 seconds). */
@@ -193,6 +198,7 @@ uint8_t curr_drift = 0;
 uint32_t distance = 0;
 uint32_t atd_result = 0;
 uint32_t drift_error = 0;
+uint32_t draw_ble = 1;
 
 static uint8_t m_adv_handle = BLE_GAP_ADV_SET_HANDLE_NOT_SET;                   /**< Advertising handle used to identify an advertising set. */
 static uint8_t m_enc_advdata[BLE_GAP_ADV_SET_DATA_SIZE_MAX];                    /**< Buffer for storing an encoded advertising set. */
@@ -201,6 +207,7 @@ static uint8_t m_enc_scan_response_data[BLE_GAP_ADV_SET_DATA_SIZE_MAX];         
 nrf_gfx_rect_t test_rect = NRF_GFX_RECT(10,100,20,150);
 
 nrfx_timer_t timer_us = NRFX_TIMER_INSTANCE(2);
+APP_PWM_INSTANCE(PWM1,3);                   // Create the instance "PWM1" using TIMER2.
 
 static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID;                        /**< Handle of the current connection. */
 
@@ -244,6 +251,30 @@ static void scan_start(void)
 //    nrf_gpio_pin_write(CENTRAL_SCANNING_LED,0);
 }
 
+static volatile bool ready_flag;            // A flag indicating PWM status.
+
+void pwm_ready_callback(uint32_t pwm_id)    // PWM callback function
+{
+    ready_flag = true;
+}
+
+void pwm_init(void){
+    ret_code_t err_code;
+    
+    /* 2-channel PWM, 200Hz, output on DK LED pins. */
+    app_pwm_config_t pwm1_cfg = APP_PWM_DEFAULT_CONFIG_1CH(5000L, PWM_PIN);
+
+    /* Switch the polarity of the second channel. */
+    pwm1_cfg.pin_polarity[1] = APP_PWM_POLARITY_ACTIVE_HIGH;
+
+    /* Initialize and enable PWM. */
+    err_code = app_pwm_init(&PWM1,&pwm1_cfg,pwm_ready_callback);
+    APP_ERROR_CHECK(err_code);
+    app_pwm_enable(&PWM1);
+
+    app_pwm_channel_duty_set(&PWM1, 0, 0);
+}
+
 /**@brief Function for handling BLE events.
  *
  * @param[in]   p_ble_evt   Bluetooth stack event.
@@ -276,6 +307,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
         // discovery, update LEDs status and resume scanning if necessary. */
         case BLE_GAP_EVT_CONNECTED:
         {
+            draw_ble = 1;
             NRF_LOG_INFO("Connected.");
             err_code = ble_lbs_c_handles_assign(&m_ble_lbs_c[p_gap_evt->conn_handle], p_gap_evt->conn_handle, NULL);
             APP_ERROR_CHECK(err_code);
@@ -307,6 +339,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
         case BLE_GAP_EVT_DISCONNECTED:
         {
             value = ble_conn_state_central_conn_count();
+            draw_ble = 1;
             NRF_LOG_INFO("Disconnected, %d connections.", value);
             
             scan_start();
@@ -525,7 +558,7 @@ static void gpio_init(void)
     err_code = nrfx_gpiote_in_init(ERROR_PIN, &in_config, (nrfx_gpiote_evt_handler_t) drifting_gpio_handler);
     APP_ERROR_CHECK(err_code);
 
-    nrf_gpio_cfg_output(TEST_LED);
+    nrf_gpio_cfg_output(LEFT_LED);
 
     nrfx_gpiote_in_event_enable(DRIFT_LEFT_PIN, true);
     nrfx_gpiote_in_event_enable(DRIFT_RIGHT_PIN, true);
@@ -588,8 +621,9 @@ static void lbs_c_evt_handler(ble_lbs_c_t * p_lbs_c, ble_lbs_c_evt_t * p_lbs_c_e
               ************************************************/
               if (p_lbs_c_evt->params.button.button_state)
               {
+                  object_close = 1;
                   text = close;
-                  nrf_gpio_pin_write(TEST_LED,1);
+                  nrf_gpio_pin_write(LEFT_LED,1);
                   NRF_LOG_INFO("Received LED ON!");
               }
               /************************************************
@@ -600,8 +634,9 @@ static void lbs_c_evt_handler(ble_lbs_c_t * p_lbs_c, ble_lbs_c_evt_t * p_lbs_c_e
               ************************************************/
               else
               {
+                  object_close = 0;
                   text = far;
-                  nrf_gpio_pin_write(TEST_LED,0);
+                  nrf_gpio_pin_write(LEFT_LED,0);
                   NRF_LOG_INFO("Received LED OFF!");
               }
         } break; // BLE_LBS_C_EVT_BUTTON_NOTIFICATION
@@ -679,40 +714,6 @@ static void scan_evt_handler(scan_evt_t const * p_scan_evt)
             break;
         default:
           break;
-    }
-}
-
-/**@brief Function for handling write events to the LED characteristic.
- *
- * @param[in] p_lbs     Instance of LED Button Service to which the write applies.
- * @param[in] led_state Written/desired state of the LED.
- */
-static void led_write_handler(uint16_t conn_handle, ble_lbs_t * p_lbs, uint8_t led_state)
-{
-    draw_text = 1;
-    /************************************************
-    * Actions if received "CLOSE" message from
-    * peripheral micro:
-    * 1. Change text to "Close"
-    * 2. Change LED Status
-    ************************************************/
-    if (led_state)
-    {
-        text = close;
-        nrf_gpio_pin_write(TEST_LED,1);
-        NRF_LOG_INFO("Received LED ON!");
-    }
-    /************************************************
-    * Actions if received "FAR" message from
-    * peripheral micro:
-    * 1. Change text to "Far"
-    * 2. Change LED Status
-    ************************************************/
-    else
-    {
-        text = far;
-        nrf_gpio_pin_write(TEST_LED,0);
-        NRF_LOG_INFO("Received LED OFF!");
     }
 }
 
@@ -795,6 +796,7 @@ int main(void)
     //leds_init();
     timers_init();
     //buttons_init();
+    pwm_init();
 
     nrf_gfx_init(lcd);
     power_management_init();
@@ -843,6 +845,7 @@ int main(void)
     int circ_thick = 5;
 
     nrf_gfx_line_t line_red = NRF_GFX_LINE(start_x,start_y - scale*3,start_x + scale*2,start_y + scale,circ_thick);
+    nrf_gfx_circle_t my_circle = NRF_GFX_CIRCLE((start_x + (start_x + scale*2)) / 2, (start_y - scale*3 + (start_y + scale)) / 2, scale*3);
 
 
     // Start execution.
@@ -867,20 +870,42 @@ int main(void)
     while (true)
     {
 
-      if(object_close)
-      {
-//        for (uint8_t i = 0; i < 40; ++i)
-//        {
-//          value = (i < 20) ? (i * 5) : (100 - (i - 20) * 5);
-//          
-//        }
+      if (ble_conn_state_central_conn_count() > 0 && draw_ble == 1)
+        {
+            draw_ble = 0;
+            nrf_gfx_line_draw(lcd, &line_red, GRAY);
+            nrf_gfx_circle_draw(lcd, &my_circle, GRAY, true);
+            nrf_gfx_line_draw(lcd, &blue_1,BLUE);
+            nrf_gfx_line_draw(lcd, &blue_2,BLUE);
+            nrf_gfx_line_draw(lcd, &blue_3,BLUE);
+            nrf_gfx_line_draw(lcd, &blue_4,BLUE);
+            nrf_gfx_line_draw(lcd, &blue_5,BLUE);
+        }
+      else if(draw_ble == 1)
+        {
+            draw_ble = 0;
+            nrf_gfx_line_draw(lcd, &line_red, RED);
+            nrf_gfx_circle_draw(lcd, &my_circle, RED, false);
+        }
+
+      if(object_close){
+        /* Set the duty cycle - keep trying until PWM is ready... */
+        NRF_LOG_INFO("OBJECT IS CLOSE. SHOULD MAKE NOISE!");
+        ready_flag = false;
+        while (app_pwm_channel_duty_set(&PWM1, 0, 50) == NRF_ERROR_BUSY);
+        //nrf_delay_ms(25);      
+      }
+      else{
+          app_pwm_channel_duty_set(&PWM1, 0, 0);
       }
 
       if(draw_text){
             draw_text = 0;
+            //nrf_gfx_rotation_set(lcd, NRF_LCD_ROTATE_270 );
             nrf_gfx_rect_draw(lcd,&wipe_text,10,GRAY,true);
             nrf_gfx_point_t text_start = NRF_GFX_POINT(5, nrf_gfx_height_get(lcd) - 50);
             APP_ERROR_CHECK(nrf_gfx_print(lcd, &text_start, 0, text, p_font, true));
+            //nrf_gfx_rotation_set(lcd, NRF_LCD_ROTATE_90 );
       }
       if(draw_right){
           draw_right = 0;
@@ -916,29 +941,3 @@ int main(void)
     }
 
 }
-
-
-/************************************************
-* Code that may be useful?
-************************************************/
-/*
-
-        err_code = ble_lbs_led_status_send(&m_ble_lbs_c, send_bit);
-        if (err_code != NRF_SUCCESS &&
-            err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
-            err_code != NRF_ERROR_INVALID_STATE)
-        {
-            APP_ERROR_CHECK(err_code);
-        }
-        
-//        if(send_bit == 20){
-//          send_bit = 0;
-//        }   
-//        else{
-//          send_bit = 20;
-//        }
-        send_bit = !send_bit;
-        //err_code = ble_lbs_led_status_send(&m_ble_lbs_c, 20);
-        nrf_delay_ms(1000);
-
-*/
