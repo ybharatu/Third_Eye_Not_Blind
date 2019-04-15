@@ -140,7 +140,6 @@
 #define DRIFT_LEFT_PIN                  13
 #define DRIFT_RIGHT_PIN                 12
 #define ERROR_PIN                       11
-#define BUFFER_SIZE                     60
 #define CENTER                          0
 #define LEFT                            1
 #define RIGHT                           2
@@ -265,14 +264,15 @@ void pwm_init(void){
     app_pwm_config_t pwm1_cfg = APP_PWM_DEFAULT_CONFIG_1CH(5000L, PWM_PIN);
 
     /* Switch the polarity of the second channel. */
-    pwm1_cfg.pin_polarity[1] = APP_PWM_POLARITY_ACTIVE_HIGH;
+    //pwm1_cfg.pin_polarity[1] = APP_PWM_POLARITY_ACTIVE_HIGH;
 
     /* Initialize and enable PWM. */
     err_code = app_pwm_init(&PWM1,&pwm1_cfg,pwm_ready_callback);
     APP_ERROR_CHECK(err_code);
     app_pwm_enable(&PWM1);
 
-    app_pwm_channel_duty_set(&PWM1, 0, 0);
+    //app_pwm_channel_duty_set(&PWM1, 0, 0);
+    //app_pwm_channel_duty_set(&PWM1, 0, 50);
 }
 
 /**@brief Function for handling BLE events.
@@ -563,6 +563,9 @@ static void gpio_init(void)
     nrfx_gpiote_in_event_enable(DRIFT_LEFT_PIN, true);
     nrfx_gpiote_in_event_enable(DRIFT_RIGHT_PIN, true);
     nrfx_gpiote_in_event_enable(ERROR_PIN, true);
+
+    //nrf_gpio_cfg_output(17);
+    //nrf_gpio_pin_write(17,0);
 }
 
 /**@brief Function for handling the idle state (main loop).
@@ -831,21 +834,32 @@ int main(void)
 
     //Graphics Init for the bluetooth Logo
     int scale = 10;
-    int start_x = 30;
-    int start_y = 40;
+    int start_rx = 30;
+    int start_ry = 40;
+    int start_lx = start_rx;
+    int start_ly = 320 - start_ry + scale*2;
     int thickness = 4;
 
-    nrf_gfx_line_t blue_1 = NRF_GFX_LINE(start_x,start_y,start_x + scale*2,start_y-scale*2,thickness);
-    nrf_gfx_line_t blue_2 = NRF_GFX_LINE(start_x + scale*2,start_y - scale*2,start_x + scale*3,start_y - scale*1,thickness);
-    nrf_gfx_line_t blue_3 = NRF_GFX_LINE(start_x - scale*1,start_y - scale*1,start_x + scale*3 + thickness,start_y - scale*1,thickness);
-    nrf_gfx_line_t blue_4 = NRF_GFX_LINE(start_x - scale*1,start_y - scale*1,start_x + scale*0,start_y - scale*2,thickness);
-    nrf_gfx_line_t blue_5 = NRF_GFX_LINE(start_x + scale*0,start_y - scale*2,start_x + scale*2,start_y - scale*0,thickness);
+    nrf_gfx_line_t blue_r1 = NRF_GFX_LINE(start_rx,start_ry,start_rx + scale*2,start_ry-scale*2,thickness);
+    nrf_gfx_line_t blue_r2 = NRF_GFX_LINE(start_rx + scale*2,start_ry - scale*2,start_rx + scale*3,start_ry - scale*1,thickness);
+    nrf_gfx_line_t blue_r3 = NRF_GFX_LINE(start_rx - scale*1,start_ry - scale*1,start_rx + scale*3 + thickness,start_ry - scale*1,thickness);
+    nrf_gfx_line_t blue_r4 = NRF_GFX_LINE(start_rx - scale*1,start_ry - scale*1,start_rx + scale*0,start_ry - scale*2,thickness);
+    nrf_gfx_line_t blue_r5 = NRF_GFX_LINE(start_rx + scale*0,start_ry - scale*2,start_rx + scale*2,start_ry - scale*0,thickness);
+
+    nrf_gfx_line_t blue_l1 = NRF_GFX_LINE(start_lx,start_ly,start_lx + scale*2,start_ly-scale*2,thickness);
+    nrf_gfx_line_t blue_l2 = NRF_GFX_LINE(start_lx + scale*2,start_ly - scale*2,start_lx + scale*3,start_ly - scale*1,thickness);
+    nrf_gfx_line_t blue_l3 = NRF_GFX_LINE(start_lx - scale*1,start_ly - scale*1,start_lx + scale*3 + thickness,start_ly - scale*1,thickness);
+    nrf_gfx_line_t blue_l4 = NRF_GFX_LINE(start_lx - scale*1,start_ly - scale*1,start_lx + scale*0,start_ly - scale*2,thickness);
+    nrf_gfx_line_t blue_l5 = NRF_GFX_LINE(start_lx + scale*0,start_ly - scale*2,start_lx + scale*2,start_ly - scale*0,thickness);
 
     //Graphics for the Red Circle over the logo
     int circ_thick = 5;
 
-    nrf_gfx_line_t line_red = NRF_GFX_LINE(start_x,start_y - scale*3,start_x + scale*2,start_y + scale,circ_thick);
-    nrf_gfx_circle_t my_circle = NRF_GFX_CIRCLE((start_x + (start_x + scale*2)) / 2, (start_y - scale*3 + (start_y + scale)) / 2, scale*3);
+    nrf_gfx_line_t l_line_red = NRF_GFX_LINE(start_lx,start_ly - scale*3,start_lx + scale*2,start_ly + scale,circ_thick);
+    nrf_gfx_circle_t l_circle = NRF_GFX_CIRCLE((start_lx + (start_lx + scale*2)) / 2, (start_ly - scale*3 + (start_ly + scale)) / 2, scale*3);
+    
+    nrf_gfx_line_t r_line_red = NRF_GFX_LINE(start_rx,start_ry - scale*3,start_rx + scale*2,start_ry + scale,circ_thick);
+    nrf_gfx_circle_t r_circle = NRF_GFX_CIRCLE((start_rx + (start_rx + scale*2)) / 2, (start_ry - scale*3 + (start_ry + scale)) / 2, scale*3);
 
 
     // Start execution.
@@ -853,11 +867,17 @@ int main(void)
     scan_start();
     bsp_board_led_on(CENTRAL_SCANNING_LED);
 
-    nrf_gfx_line_draw(lcd, &blue_1,BLUE);
-    nrf_gfx_line_draw(lcd, &blue_2,BLUE);
-    nrf_gfx_line_draw(lcd, &blue_3,BLUE);
-    nrf_gfx_line_draw(lcd, &blue_4,BLUE);
-    nrf_gfx_line_draw(lcd, &blue_5,BLUE);
+    nrf_gfx_line_draw(lcd, &blue_r1,BLUE);
+    nrf_gfx_line_draw(lcd, &blue_r2,BLUE);
+    nrf_gfx_line_draw(lcd, &blue_r3,BLUE);
+    nrf_gfx_line_draw(lcd, &blue_r4,BLUE);
+    nrf_gfx_line_draw(lcd, &blue_r5,BLUE);
+
+    nrf_gfx_line_draw(lcd, &blue_l1,BLUE);
+    nrf_gfx_line_draw(lcd, &blue_l2,BLUE);
+    nrf_gfx_line_draw(lcd, &blue_l3,BLUE);
+    nrf_gfx_line_draw(lcd, &blue_l4,BLUE);
+    nrf_gfx_line_draw(lcd, &blue_l5,BLUE);
 
     nrf_gfx_rect_draw(lcd, &left_rect_1,2,BLACK,false);
     nrf_gfx_rect_draw(lcd, &left_rect_2,2,BLACK,false);
@@ -872,28 +892,41 @@ int main(void)
 
       if (ble_conn_state_central_conn_count() > 0 && draw_ble == 1)
         {
+            //Clear The no bluetooth symbol and redraw the bluetooth logo
             draw_ble = 0;
-            nrf_gfx_line_draw(lcd, &line_red, GRAY);
-            nrf_gfx_circle_draw(lcd, &my_circle, GRAY, true);
-            nrf_gfx_line_draw(lcd, &blue_1,BLUE);
-            nrf_gfx_line_draw(lcd, &blue_2,BLUE);
-            nrf_gfx_line_draw(lcd, &blue_3,BLUE);
-            nrf_gfx_line_draw(lcd, &blue_4,BLUE);
-            nrf_gfx_line_draw(lcd, &blue_5,BLUE);
+            nrf_gfx_line_draw(lcd, &l_line_red, GRAY);
+            nrf_gfx_circle_draw(lcd, &l_circle, GRAY, true);
+            nrf_gfx_line_draw(lcd, &blue_l1,BLUE);
+            nrf_gfx_line_draw(lcd, &blue_l2,BLUE);
+            nrf_gfx_line_draw(lcd, &blue_l3,BLUE);
+            nrf_gfx_line_draw(lcd, &blue_l4,BLUE);
+            nrf_gfx_line_draw(lcd, &blue_l5,BLUE);
         }
       else if(draw_ble == 1)
         {
+            //Draw Left no bluetooth symbol
             draw_ble = 0;
-            nrf_gfx_line_draw(lcd, &line_red, RED);
-            nrf_gfx_circle_draw(lcd, &my_circle, RED, false);
+            nrf_gfx_line_draw(lcd, &l_line_red, RED);
+            for(int i = 0; i < circ_thick; i++){
+              l_circle.r--;
+              nrf_gfx_circle_draw(lcd, &l_circle, RED, false);
+            }
+            l_circle.r = scale*3;
+
+            //Draw Right no bluetooth symbol
+            nrf_gfx_line_draw(lcd, &r_line_red, RED);
+            for(int i = 0; i < circ_thick; i++){
+              r_circle.r--;
+              nrf_gfx_circle_draw(lcd, &r_circle, RED, false);
+            }
+            r_circle.r = scale*3;
         }
 
       if(object_close){
         /* Set the duty cycle - keep trying until PWM is ready... */
         NRF_LOG_INFO("OBJECT IS CLOSE. SHOULD MAKE NOISE!");
         ready_flag = false;
-        while (app_pwm_channel_duty_set(&PWM1, 0, 50) == NRF_ERROR_BUSY);
-        //nrf_delay_ms(25);      
+        while (app_pwm_channel_duty_set(&PWM1, 0, 50) == NRF_ERROR_BUSY);      
       }
       else{
           app_pwm_channel_duty_set(&PWM1, 0, 0);
