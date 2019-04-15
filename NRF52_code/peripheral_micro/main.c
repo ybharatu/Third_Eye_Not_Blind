@@ -48,6 +48,7 @@
 #include <string.h>
 #include <stdbool.h>
 
+#include "math.h"
 #include "nrf_sdh.h"
 #include "nrf_sdh_ble.h"
 #include "nrf_sdh_soc.h"
@@ -100,6 +101,7 @@
 #define LEDBUTTON_LED                   BSP_BOARD_LED_2                         /**< LED to be toggled with the help of the LED Button Service. */
 #define LEDBUTTON_BUTTON                BSP_BUTTON_0                            /**< Button that will trigger the notifioation event with the LED Button Service */
 #define TEST_LED                        22
+#define SENSOR_PIN                      6
 
 #define DEVICE_NAME                     "Yash_Blinky"                 /**< Name of device. Will be included in the advertising data. */
 
@@ -133,6 +135,7 @@
 #define RIGHT                           2
 
 #define SAMPLES_IN_BUFFER               1 
+#define BUFFER_SIZE                     20
 
 BLE_LBS_DEF(m_lbs);                                                             /**< LED Button Service instance. */
 NRF_BLE_GATT_DEF(m_gatt);                                                       /**< GATT module instance. */
@@ -149,6 +152,9 @@ static uint8_t m_enc_scan_response_data[BLE_GAP_ADV_SET_DATA_SIZE_MAX];         
 uint32_t distance = 0;
 uint32_t atd_result = 0;
 uint32_t prev_value;
+uint32_t far_count = 5;
+uint32_t close_count = 0;
+
 nrf_saadc_value_t p_value = 0;
 static nrf_saadc_value_t m_buffer[SAMPLES_IN_BUFFER];
 
@@ -159,6 +165,16 @@ const char * text = "";
 uint32_t seconds = 0;
 
 uint8_t i = 0;
+
+float average = 0;
+int curr_index = 0;
+float all_distances[BUFFER_SIZE];
+int first = 1;
+int sum = 0;
+float std_dev = 0;
+float var_sum = 500;
+float new_average = 0;
+float variance = 0;
 
 /**@brief Struct that contains pointers to the encoded advertising data. */
 static ble_gap_adv_data_t m_adv_data =
@@ -197,13 +213,15 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
  *
  * @details Initializes all LEDs used by the application.
  */
-static void leds_init(void)
+static void gpio_init(void)
 {
     bsp_board_init(BSP_INIT_LEDS);
     nrf_gpio_cfg_output(CONNECTED_LED);
     nrf_gpio_cfg_output(ADVERTISING_LED);
     nrf_gpio_cfg_output(TEST_LED);
     nrf_gpio_pin_write(ADVERTISING_LED,0);
+    nrf_gpio_cfg_output(SENSOR_PIN);
+    nrf_gpio_pin_write(SENSOR_PIN,1);
 }
 
 /************************************************
@@ -217,40 +235,59 @@ nrfx_timer_event_handler_t LVEZ4_measure(void){
     
     nrf_drv_saadc_sample();
 
-    NRF_LOG_INFO("Distance: %d", distance);
+    //NRF_LOG_INFO("Average Distance: %d", average);
    
     /************************************************
     * If Object is close and was previously far,
     * send 1 to main micro
     ************************************************/
-    if(distance < 60 && prev_value == 0){
+    if(average < 60 && prev_value == 0){
+      NRF_LOG_INFO("Switched from Far to Close\n");
       NRF_LOG_FLUSH();
       prev_value = 1;
-//      err_code = ble_lbs_on_button_change(m_conn_handle, &m_lbs, 1);
-//      if (err_code != NRF_SUCCESS &&
-//          err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
-//          err_code != NRF_ERROR_INVALID_STATE)
-//      {
-//          APP_ERROR_CHECK(err_code);
-//      }
+       
+      //NRF_LOG_INFO("Object is close! %d", close_count);
+      err_code = ble_lbs_on_button_change(m_conn_handle, &m_lbs, 1);
+      if (err_code != NRF_SUCCESS &&
+        err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
+        err_code != NRF_ERROR_INVALID_STATE)
+      {
+        APP_ERROR_CHECK(err_code);
+      }
+      
     }
+//    if(average < 60){
+//      close_count += 1;
+//      far_count = 0;
+//      NRF_LOG_INFO("Incramented close_count: %d", close_count);
+//    }
 
     /************************************************
     * If Object is far and was previously close, 
     * send 0 to main micro
     ************************************************/
-    else if(distance >= 60 && prev_value == 1){
+    else if(average >= 60 && prev_value == 1){
       NRF_LOG_INFO("Switched from Close to Far\n");
       NRF_LOG_FLUSH();
       prev_value = 0;
-//      //err_code = ble_lbs_on_button_change(m_conn_handle, &m_lbs, 0);
-//      if (err_code != NRF_SUCCESS &&
-//          err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
-//          err_code != NRF_ERROR_INVALID_STATE)
-//      {
-//          APP_ERROR_CHECK(err_code);
-//      }
+      
+      NRF_LOG_INFO("Object is far! %d", far_count);
+      err_code = ble_lbs_on_button_change(m_conn_handle, &m_lbs, 0);
+
+      if (err_code != NRF_SUCCESS &&
+        err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
+        err_code != NRF_ERROR_INVALID_STATE)
+      {
+        APP_ERROR_CHECK(err_code);
+      }
+        
     }
+//    if(average >= 60){
+//      far_count += 1;
+//      close_count = 0;
+//      NRF_LOG_INFO("Incramented far_count: %d", far_count);
+//    }
+
     NRF_LOG_FLUSH();
     nrfx_timer_clear(&timer_us);
    
@@ -281,6 +318,24 @@ void saadc_callback(nrf_drv_saadc_evt_t const * p_event)
         APP_ERROR_CHECK(err_code);
         p_value = p_event->data.done.p_buffer[0];
         distance = p_value;
+
+        if(first){
+          average = p_value;
+          new_average = p_value;
+          first = 0;
+        }else{
+//          if((p_value > (average + sqrt(variance)) || p_value < (average - sqrt(variance)))){
+//            NRF_LOG_INFO("BAD DATA Boundary is: %d - %d",(average - sqrt(variance)), (average + sqrt(variance)) );
+//            return;
+//          }
+          NRF_LOG_INFO("GOOD DATA");
+          new_average = average + ((p_value - average) / BUFFER_SIZE);
+          //new_average = average + (p_value / BUFFER_SIZE);
+          NRF_LOG_INFO("PREV AVERAGE: %d  NEW AVERAGE: %d  ACTUAL DISTANCE: %d", average, new_average, p_value);
+          var_sum = var_sum + (p_value - average)*(p_value - new_average);
+          average = new_average;
+          variance = var_sum / (BUFFER_SIZE - 1);
+        }
     }
 }
 
@@ -755,7 +810,7 @@ int main(void)
     // Initialize.
     log_init();
     timer_init();
-    leds_init();
+    gpio_init();
     buttons_init();
     power_management_init();
     ble_stack_init();
@@ -773,20 +828,23 @@ int main(void)
     NRF_LOG_INFO("Blinky CENTRAL example started.");
     advertising_start();
 
+    nrf_gpio_pin_write(SENSOR_PIN,1);
+
     // Enter main loop.
     for (;;)
     {
-        send_bit = !send_bit;
-        err_code = ble_lbs_on_button_change(m_conn_handle, &m_lbs, send_bit);
-        if (err_code != NRF_SUCCESS &&
-            err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
-            err_code != NRF_ERROR_INVALID_STATE &&
-            err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)
-        {
-            APP_ERROR_CHECK(err_code);
-        }
+//        nrf_delay_ms(500);
+//        send_bit = !send_bit;
+//        err_code = ble_lbs_on_button_change(m_conn_handle, &m_lbs, send_bit);
+//        if (err_code != NRF_SUCCESS &&
+//            err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
+//            err_code != NRF_ERROR_INVALID_STATE &&
+//            err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)
+//        {
+//            APP_ERROR_CHECK(err_code);
+//        }
         idle_state_handle();
-        nrf_delay_ms(500);
+        
         //NRF_LOG_INFO("Current Distance: %d\n", p_value);
     }
 }
