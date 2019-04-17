@@ -103,11 +103,11 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
             right_drift_cnt = 0
             left_drift_cnt = 0
         elif (drift_value == 3):
-            print("Could not detect lines")
+            # print("Could not detect lines")
             out_imgs += 1
             if not out_imgs % 2:
                 img_print_num += 1
-            continue
+            # continue
         else:
             print("Unexpected Value Obtained in Output buffer")
 
@@ -119,8 +119,11 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
         elif(right_drift_cnt >= num_drifts_thresh):
             print("Drifting Right!! img" + str(img_print_num))
         else:
-            #print("Not Drifting " + "left_cnt: " + str(left_drift_cnt) + " right_cnt: " + str(right_drift_cnt))
-            print("Not Drifting    img" + str(out_imgs))
+            if(drift_value == 3):
+                print("Could not detect lines")
+            else:
+                #print("Not Drifting " + "left_cnt: " + str(left_drift_cnt) + " right_cnt: " + str(right_drift_cnt))
+                print("Not Drifting    img" + str(out_imgs))
         out_imgs += 1
         if not out_imgs%2:
             img_print_num += 1
@@ -193,8 +196,8 @@ def processImage(img_buf, out_buf, save, which_worker):
         #################################################################
         # Get current drifting value based on image
         #################################################################
-        #dist_off = get_drift_value(interest, 1, np.pi / 180, 10, 20, 5)
-        dist_off = 0
+        dist_off = get_drift_value(interest)
+        # dist_off = 0
         #################################################################
         # Wait until output buffer is empty
         #################################################################

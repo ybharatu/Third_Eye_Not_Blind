@@ -12,7 +12,7 @@ import multiprocessing
 # Multiprocessing Information
 #################################################################
 NUM_WORKERS = 2
-NUM_FRAMES = 300
+NUM_FRAMES = 500
 
 #################################################################
 # GPIO Pin Values

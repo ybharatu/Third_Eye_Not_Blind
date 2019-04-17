@@ -201,7 +201,6 @@ def draw_lines(img, lines, thickness=5):
     leftLinesSF = []
     ################
     img_mid_point = img.shape[1] / 2
-    # num_frame_persist = 5
     rightColor = [0, 255, 0]
     leftColor = [255, 0, 0]
     middleStatColor = [255, 255, 0]
@@ -412,9 +411,18 @@ def draw_lines(img, lines, thickness=5):
 #################################################################
 def find_position_in_lines(img, lines):
     global rightSlope, leftSlope, rightIntercept, leftIntercept
+    global num_frame_persist
     drift_threshold = 45
-    lines_height_percent = 0.75
+    lines_height_percent = 0.80
     img_mid_point = img.shape[1] / 2
+    # single frame variables
+    rightSlopeSF = []
+    leftSlopeSF = []
+    rightInterceptSF = []
+    leftInterceptSF = []
+    rightLinesSF = []
+    leftLinesSF = []
+
 
 
     # this is used to filter out the outlying lines that can affect the average
@@ -430,52 +438,90 @@ def find_position_in_lines(img, lines):
                 return 3
             slope = (y1 - y2) / denom
 
-            # print("slope = " + str(slope))
-            if slope > 0.5:
-                if x1 > img_mid_point:
-                    yintercept = y2 - (slope * x2)
-                    rightSlope.append(slope)
-                    rightIntercept.append(yintercept)
-                else:
-                    None
-            elif slope < -0.5:
-                if x1 < img_mid_point:
-                    yintercept = y2 - (slope * x2)
-                    leftSlope.append(slope)
-                    leftIntercept.append(yintercept)
+            if slope > 0.4 and slope < 2 and x1 > img_mid_point:
+                yintercept = y2 - (slope * x2)
+                linelen = math.sqrt(math.pow((x2 - x1), 2) + math.pow((y2 - y1), 2))
+                rightSlopeSF.append(slope)
+                rightInterceptSF.append(yintercept)
+                rightLinesSF.append(linelen)
+            elif slope < -0.4 and slope > -2 and x1 < img_mid_point:
+                yintercept = y2 - (slope * x2)
+                linelen = math.sqrt(math.pow((x2 - x1), 2) + math.pow((y2 - y1), 2))
+                leftSlopeSF.append(slope)
+                leftInterceptSF.append(yintercept)
+                leftLinesSF.append(linelen)
 
-    if len(leftSlope) == 0:
-        print("not enough left slope lines")
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!")
+    bestRightIdx = findLongestLineIdx(rightLinesSF)
+    bestLeftIdx = findLongestLineIdx(leftLinesSF)
+
+    if bestLeftIdx != None:
+        # left lines were found
+        leftSlope.append(leftSlopeSF[bestLeftIdx])
+        leftIntercept.append(leftInterceptSF[bestLeftIdx])
+    if bestRightIdx != None:
+        # right lines were found
+        rightSlope.append(rightSlopeSF[bestRightIdx])
+        rightIntercept.append(rightInterceptSF[bestRightIdx])
+
+    lenright = len(rightSlope)
+    lenleft = len(leftSlope)
+    if lenright > num_frame_persist:
+        rightSlope.pop(0)
+        rightIntercept.pop(0)
+    if lenleft > num_frame_persist:
+        leftSlope.pop(0)
+        leftIntercept.pop(0)
+    if lenright == 0 or lenleft == 0:
+        # no lines!!!
         return 3
-    elif len(rightSlope) == 0:
-        print("not enough right slope lines")
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!")
-        return 3
 
-    try:
-        # We use slicing operators and np.mean() to find the averages of the 30 previous frames
-        # This makes the lines more stable, and less likely to shift rapidly
-        leftavgSlope = np.mean(leftSlope[-30:])
-        leftavgIntercept = np.mean(leftIntercept[-30:])
 
-        rightavgSlope = np.mean(rightSlope[-30:])
-        rightavgIntercept = np.mean(rightIntercept[-30:])
+    # We use slicing operators and np.mean() to find the averages of the 30 previous frames
+    # This makes the lines more stable, and less likely to shift rapidly
+    # leftavgSlope = np.mean(leftSlope[-30:])
+    # leftavgIntercept = np.mean(leftIntercept[-30:])
+    #
+    # rightavgSlope = np.mean(rightSlope[-30:])
+    # rightavgIntercept = np.mean(rightIntercept[-30:])
 
+    leftavgSlope = leftSlope[-1]
+    leftavgIntercept = leftIntercept[-1]
+
+    rightavgSlope = rightSlope[-1]
+    rightavgIntercept = rightIntercept[-1]
+
+    left_line_x1 = int((lines_height_percent * img.shape[0] - leftavgIntercept) / leftavgSlope)
+    right_line_x1 = int((lines_height_percent * img.shape[0] - rightavgIntercept) / rightavgSlope)
+
+    lanewidth = right_line_x1 - left_line_x1
+    if lanewidth < 70:
+        # print("lane width ==== " + str(lanewidth))
+        rightSlope.pop(-1)
+        rightIntercept.pop(-1)
+        leftSlope.pop(-1)
+        leftIntercept.pop(-1)
+        if len(rightSlope) == 0 or len(leftSlope) == 0:
+            # no lines!!!
+            return 3
+        ############ Recalculate everything since we had to throw out that data point
+        leftavgSlope = leftSlope[-1]
+        leftavgIntercept = leftIntercept[-1]
+        rightavgSlope = rightSlope[-1]
+        rightavgIntercept = rightIntercept[-1]
         left_line_x1 = int((lines_height_percent * img.shape[0] - leftavgIntercept) / leftavgSlope)
-
         right_line_x1 = int((lines_height_percent * img.shape[0] - rightavgIntercept) / rightavgSlope)
+        ##############
 
-        center_line_x = int((img.shape[1] / 2))
 
-        mid_lane_x = int(((left_line_x1 + right_line_x1) / 2))
+    center_line_x = int((img.shape[1] / 2))
 
-        off_center_dist = center_line_x - mid_lane_x
-        # print("off center dist: " + str(off_center_dist))
-        # print("offset: " + str(off_center_dist))
-        # print("Off Center Distance: " + str(off_center_dist))
-    except:
-        return 3
+    mid_lane_x = int(((left_line_x1 + right_line_x1) / 2))
+
+    off_center_dist = center_line_x - mid_lane_x
+    # print("off center dist: " + str(off_center_dist))
+    # print("offset: " + str(off_center_dist))
+    # print("Off Center Distance: " + str(off_center_dist))
+
 
     if off_center_dist > drift_threshold:
         return 1  # drifting right
@@ -503,6 +549,26 @@ def hough_lines(img, rho, theta, threshold, min_line_len, max_line_gap):
         draw_lines(line_img, lines)
     return line_img
 
+#################################################################
+# Function: hough_lines
+# Description: Takes in the parameters of OpenCV HoughLinesP
+# function. Can be modified to draw/not draw the lines on the
+# image. Returns either line with image or list of
+# (start_pt1, end_pt1, start_pt2, end_pt2).
+#################################################################
+def hough_lines(img):
+    """
+    `img` should be the output of a Canny transform.
+    """
+    rho = 1
+    theta = np.pi / 18
+    threshold = 30
+    min_line_len = 20
+    max_line_gap = 10
+    lines = cv2.HoughLinesP(img, rho, theta, threshold, np.array([]), minLineLength=min_line_len,
+                            maxLineGap=max_line_gap)
+    return lines
+
 
 #################################################################
 # Function: get_drift_value
@@ -510,12 +576,13 @@ def hough_lines(img, rho, theta, threshold, min_line_len, max_line_gap):
 # function. Returns if drifting left, drifting right, not
 # drifting, or if no lines can be found
 #################################################################
-def get_drift_value(img, rho, theta, threshold, min_line_len, max_line_gap):
+def get_drift_value(img):
     """
     `img` should be the output of a Canny transform.
     """
-    lines = cv2.HoughLinesP(img, rho, theta, threshold, np.array([]), minLineLength=min_line_len,
-                            maxLineGap=max_line_gap)
+    lines = hough_lines(img)
+    # lines = cv2.HoughLinesP(img, rho, theta, threshold, np.array([]), minLineLength=min_line_len,
+    #                         maxLineGap=max_line_gap)
     return find_position_in_lines(img, lines)
 
 
@@ -525,7 +592,14 @@ def get_drift_value(img, rho, theta, threshold, min_line_len, max_line_gap):
 # modify parameters.
 #################################################################
 def linedetect(img):
-    return hough_lines(img, 1, np.pi / 180, 30, 20, 10)
+    """
+        `img` should be the output of a Canny transform.
+        """
+    lines = hough_lines(img)
+    line_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
+    if (lines is not None):
+        draw_lines(line_img, lines)
+    return line_img
 
 
 #################################################################
