@@ -120,7 +120,7 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
             print("Drifting Right!! img" + str(img_print_num))
         else:
             #print("Not Drifting " + "left_cnt: " + str(left_drift_cnt) + " right_cnt: " + str(right_drift_cnt))
-            print("Not Drifting    img" + str(img_print_num))
+            print("Not Drifting    img" + str(out_imgs))
         out_imgs += 1
         if not out_imgs%2:
             img_print_num += 1
@@ -181,7 +181,7 @@ def processImage(img_buf, out_buf, save, which_worker):
         # also drawn. The resulting image is then saved to a file
         #################################################################
         if save:
-            print("Working on img" + str(imgs) + " worker " + str(which_worker))
+            # print("Working on img" + str(imgs) + " worker " + str(which_worker))
             #myline = hough_lines(interest, 1, np.pi / 180, 10, 20, 5)
             myline = linedetect(interest)
             weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)

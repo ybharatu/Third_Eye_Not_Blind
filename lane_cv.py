@@ -9,6 +9,7 @@ import os
 import sys
 import numpy as np
 import cv2
+import math
 from common import *
 
 #################################################################
@@ -168,6 +169,19 @@ def resize_n_crop(image):
     cropped = resized[int(resized.shape[0] * croptop_percent_y):int(resized.shape[0] * cropbottom_percent_y), 0:resized.shape[1]]  # img[y:y+h, x:x+w]
     return cropped
 
+#################################################################
+# Function: findLongestLineIdx
+# Description: Takes in a list and returns the index of the
+# max element
+#################################################################
+def findLongestLineIdx(linelist):
+    maxlen = 0
+    bestlnidx = None
+    for i, lnlen in enumerate(linelist):
+        if lnlen > maxlen:
+            maxlen = lnlen
+            bestlnidx = i
+    return bestlnidx
 
 #################################################################
 # Function: draw_lines
@@ -176,13 +190,18 @@ def resize_n_crop(image):
 # onto the given image and returns the image.
 #################################################################
 def draw_lines(img, lines, thickness=5):
-    global rightSlope, leftSlope, rightIntercept, leftIntercept
-    # rightSlope = []
-    # leftSlope = []
-    # rightIntercept = []
-    # leftIntercept = []
+    global rightSlopeDL, leftSlopeDL, rightInterceptDL, leftInterceptDL
+    global num_frame_persist, rightTTL, leftTTL
+    #single frame variables
+    rightSlopeSF = []
+    leftSlopeSF = []
+    rightInterceptSF = []
+    leftInterceptSF = []
+    rightLinesSF = []
+    leftLinesSF = []
+    ################
     img_mid_point = img.shape[1] / 2
-    num_frame_persist = 5
+    # num_frame_persist = 5
     rightColor = [0, 255, 0]
     leftColor = [255, 0, 0]
     middleStatColor = [255, 255, 0]
@@ -193,103 +212,196 @@ def draw_lines(img, lines, thickness=5):
     img_mid_point = img.shape[1] / 2
     #print("img_mid_point = " + str(img_mid_point))
     lines_height_percent = 0.80
+    foundleft = False
+    foundright = False
+
     #print("img.shape[0] = " + str(img.shape[0]) + "img.shape[1] = " + str(img.shape[1]))
     # this is used to filter out the outlying lines that can affect the average
     # We then use the slope we determined to find the y-intercept of the filtered lines by solving for b in y=mx+b
     for line in lines:
         for x1, y1, x2, y2 in line:
-            #print("x1: " + str(x1) + "x2: " + str(x2) + "y1: " + str(y1) + "y2: " + str(y2))
+            # print("x1: " + str(x1) + "x2: " + str(x2) + "y1: " + str(y1) + "y2: " + str(y2))
             denom = x1 - x2
             if denom == 0:
                 # print("divided by zero in draw_lines")
                 continue
             slope = (y1 - y2) / denom
+            # print("slope ===== " + str(slope))
 
-            if slope > 0.4 and slope < 2:
-                if x1 > img_mid_point:
-                    yintercept = y2 - (slope * x2)
-                    extended_line_x1 = int((lines_height_percent * img.shape[0] - yintercept) / slope)
-                    if extended_line_x1 > img_mid_point+5:
-                        print("right slope = " + str(slope) + " x1 = " + str(extended_line_x1) + " midpoint = " + str(img_mid_point))
-                        cv2.line(img, (x1, y1), (x2, y2), houghcolor, 5)
-                        rightSlope.append(slope)
-                        rightIntercept.append(yintercept)
-                else:
-                    None
-            elif slope < -0.4 and slope > -2:
-                if x1 < img_mid_point:
-                    yintercept = y2 - (slope * x2)
-                    extended_line_x1 = int((lines_height_percent * img.shape[0] - yintercept) / slope)
-                    if extended_line_x1 < img_mid_point-5:
-                        print("left slope = " + str(slope) + " x1 = " + str(extended_line_x1) + " midpoint = " + str(img_mid_point))
-                        cv2.line(img, (x1, y1), (x2, y2), houghcolor, 5)
-                        leftSlope.append(slope)
-                        leftIntercept.append(yintercept)
+            #Detect right line!!!
+            if slope > 0.4 and slope < 2 and x1 > img_mid_point:
+                yintercept = y2 - (slope * x2)
+                # extended_line_x1 = int((lines_height_percent * img.shape[0] - yintercept) / slope)
+                # if extended_line_x1 > img_mid_point+5:
+                # print("right slope = " + str(slope) + " x1 = " + str(x1))
+                # cv2.line(img, (x1, y1), (x2, y2), houghcolor, 5)
+                # if(len(rightSlopeDL) > 0):
+                #     rightSlopeDL.pop(0)
+                #     rightInterceptDL.pop(0)
+                # rightSlopeDL.append(slope)
+                # rightInterceptDL.append(yintercept)
+                linelen = math.sqrt(math.pow((x2 - x1), 2) + math.pow((y2 - y1), 2))
+                rightSlopeSF.append(slope)
+                rightInterceptSF.append(yintercept)
+                rightLinesSF.append(linelen)
+                foundright = True
+
+            #Detect left line!!!
+            elif slope < -0.4 and slope > -2 and x1 < img_mid_point:
+                yintercept = y2 - (slope * x2)
+                # extended_line_x1 = int((lines_height_percent * img.shape[0] - yintercept) / slope)
+                # if extended_line_x1 < img_mid_point-5:
+                # print("left slope = " + str(slope) + " x1 = " + str(x1))
+                # cv2.line(img, (x1, y1), (x2, y2), houghcolor, 5)
+                # if (len(leftSlopeDL) > 0):
+                #     leftSlopeDL.pop(0)
+                #     leftInterceptDL.pop(0)
+                # leftSlopeDL.append(slope)
+                # leftInterceptDL.append(yintercept)
+                linelen = math.sqrt(math.pow((x2 - x1), 2) + math.pow((y2 - y1), 2))
+                leftSlopeSF.append(slope)
+                leftInterceptSF.append(yintercept)
+                leftLinesSF.append(linelen)
+                foundleft = True
+
+
+
+    bestRightIdx = findLongestLineIdx(rightLinesSF)
+    bestLeftIdx = findLongestLineIdx(leftLinesSF)
+
+
+    if bestLeftIdx != None:
+        #left lines were found
+        # print("chosen left line slope = " + str(leftSlopeSF[bestLeftIdx]))
+        leftSlopeDL.append(leftSlopeSF[bestLeftIdx])
+        leftInterceptDL.append(leftInterceptSF[bestLeftIdx])
+    if bestRightIdx != None:
+        #right lines were found
+        # print("chosen right line slope = " + str(rightSlopeSF[bestRightIdx]))
+        rightSlopeDL.append(rightSlopeSF[bestRightIdx])
+        rightInterceptDL.append(rightInterceptSF[bestRightIdx])
+
+    lenright = len(rightSlopeDL)
+    lenleft = len(leftSlopeDL)
+    if lenright > num_frame_persist:
+        rightSlopeDL.pop(0)
+        rightInterceptDL.pop(0)
+    if lenleft > num_frame_persist:
+        leftSlopeDL.pop(0)
+        leftInterceptDL.pop(0)
+    if lenright == 0 or lenleft == 0:
+        # no lines!!!
+        return
+
+
+
 
     # print("leftSlope = " + leftSlope + "  rightSlope = " + rightSlope)
-    print("------------")
-    print(leftSlope)
-    print(rightSlope)
-    print("------------")
-    if len(leftSlope) == 0:
-        # print("not enough left slope lines")
-        # print("!!!!!!!!!!!!!!!!!!!!!!!!!")
-        return
-    elif len(rightSlope) == 0:
-        # print("not enough right slope lines")
-        # print("!!!!!!!!!!!!!!!!!!!!!!!!!")
-        return
+    # print("------------")
+    # print(leftSlopeDL)
+    # print(rightSlopeDL)
+    # print("------------")
 
         # We use slicing operators and np.mean() to find the averages of the 30 previous frames
     # This makes the lines more stable, and less likely to shift rapidly
-    leftavgSlope = np.mean(leftSlope[-num_frame_persist:])
-    leftavgIntercept = np.mean(leftIntercept[-num_frame_persist:])
+    # leftavgSlope = np.mean(leftSlopeDL[-num_frame_persist:])
+    # leftavgIntercept = np.mean(leftInterceptDL[-num_frame_persist:])
+    #
+    # rightavgSlope = np.mean(rightSlopeDL[-num_frame_persist:])
+    # rightavgIntercept = np.mean(rightInterceptDL[-num_frame_persist:])
+    #########################
+    # leftavgSlope = np.mean(leftSlopeDL)
+    # leftavgIntercept = np.mean(leftInterceptDL)
+    #
+    # rightavgSlope = np.mean(rightSlopeDL)
+    # rightavgIntercept = np.mean(rightInterceptDL)
+    #########################
+    leftavgSlope = leftSlopeDL[-1]
+    leftavgIntercept = leftInterceptDL[-1]
 
-    rightavgSlope = np.mean(rightSlope[-num_frame_persist:])
-    rightavgIntercept = np.mean(rightIntercept[-num_frame_persist:])
+    rightavgSlope = rightSlopeDL[-1]
+    rightavgIntercept = rightInterceptDL[-1]
+
 
     # Here we plot the lines and the shape of the lane using the average slope and intercepts
-    try:
+    # try:
+    left_line_x1 = int((lines_height_percent * img.shape[0] - leftavgIntercept) / leftavgSlope)
+    left_line_x2 = int((img.shape[0] - leftavgIntercept) / leftavgSlope)
+
+    right_line_x1 = int((lines_height_percent * img.shape[0] - rightavgIntercept) / rightavgSlope)
+    right_line_x2 = int((img.shape[0] - rightavgIntercept) / rightavgSlope)
+
+    lanewidth = right_line_x1 - left_line_x1
+    # print("lane width ==== " + str(lanewidth))
+    if lanewidth < 70:
+        # print("lane width ==== " + str(lanewidth))
+        rightSlopeDL.pop(-1)
+        rightInterceptDL.pop(-1)
+        leftSlopeDL.pop(-1)
+        leftInterceptDL.pop(-1)
+        if len(rightSlopeDL) == 0 or len(leftSlopeDL) == 0:
+            # no lines!!!
+            return
+        ############ Recalculate everything since we had to throw out that data point
+        leftavgSlope = leftSlopeDL[-1]
+        leftavgIntercept = leftInterceptDL[-1]
+        rightavgSlope = rightSlopeDL[-1]
+        rightavgIntercept = rightInterceptDL[-1]
         left_line_x1 = int((lines_height_percent * img.shape[0] - leftavgIntercept) / leftavgSlope)
         left_line_x2 = int((img.shape[0] - leftavgIntercept) / leftavgSlope)
-
         right_line_x1 = int((lines_height_percent * img.shape[0] - rightavgIntercept) / rightavgSlope)
         right_line_x2 = int((img.shape[0] - rightavgIntercept) / rightavgSlope)
-
-        midstat_line_x1 = int((img.shape[1] / 2))
-        midstat_line_x2 = int((img.shape[1] / 2))
-
-        middyn_line_x1 = int(((left_line_x1 + right_line_x1) / 2))
-        middyn_line_x1 = int(((left_line_x1 + right_line_x1) / 2))
-        middyn_line_x2 = middyn_line_x1
-
-        pts = np.array([[left_line_x1, int(lines_height_percent * img.shape[0])], [left_line_x2, int(img.shape[0])],
-                        [right_line_x2, int(img.shape[0])], [right_line_x1, int(lines_height_percent * img.shape[0])]], np.int32)
-        #pts = pts.resha                              pe((-1, 1, 2))
-        #cv2.fillPoly(img, [pts], (0, 0, 255))
+        ##############
 
 
-        # make roi polygon
-        shape = roi_return_array(img)
-        #cv2.fillPoly(img, np.int32([shape]), (0,0,255))
+    midstat_line_x1 = int((img.shape[1] / 2))
+    midstat_line_x2 = int((img.shape[1] / 2))
+
+    middyn_line_x1 = int(((left_line_x1 + right_line_x1) / 2))
+    middyn_line_x2 = middyn_line_x1
+
+    pts = np.array([[left_line_x1, int(lines_height_percent * img.shape[0])], [left_line_x2, int(img.shape[0])],
+                    [right_line_x2, int(img.shape[0])], [right_line_x1, int(lines_height_percent * img.shape[0])]], np.int32)
+    #pts = pts.resha                              pe((-1, 1, 2))
+    # cv2.fillPoly(img, [pts], (0, 0, 255))
 
 
-        # left lane line
-        cv2.line(img, (left_line_x1, int(lines_height_percent * img.shape[0])), (left_line_x2, int(img.shape[0])), leftColor, 10)
-        # right lane line
-        cv2.line(img, (right_line_x1, int(lines_height_percent * img.shape[0])), (right_line_x2, int(img.shape[0])), rightColor, 10)
-        # middle of frame line (yellow)
-        cv2.line(img, (midstat_line_x1, int(lines_height_percent * img.shape[0])), (midstat_line_x2, int(img.shape[0])),
-                 middleStatColor, 10)
-        # middle of lane line (white)
-        cv2.line(img, (middyn_line_x1, int(lines_height_percent * img.shape[0])), (middyn_line_x2, int(img.shape[0])), middleDynColor,
-                 10)
+    # make roi polygon
+    shape = roi_return_array(img)
+    # cv2.fillPoly(img, np.int32([shape]), (0,0,255))
+
+    leftshape = np.array([[int(50), int(50)], [int(100), int(50)], [int(100), int(100)], [int(50), int(100)]])
+    rightshape = np.array([[int(img.shape[1] - 100), int(50)], [int(img.shape[1] - 50), int(50)], [int(img.shape[1] - 50), int(100)], [int(img.shape[1] - 100), int(100)]])
+
+    # this is just for the find_position_in_lane function and it is here temporarily
+    center_line_x = int((img.shape[1] / 2))
+    mid_lane_x = int(((left_line_x1 + right_line_x1) / 2))
+    off_center_dist = center_line_x - mid_lane_x
+    if off_center_dist > drift_threshold:
+        print("!!!Drifting right!!!")  # drifting right
+        cv2.fillPoly(img, np.int32([rightshape]), (255,0,0))
+    elif off_center_dist < (-1) * drift_threshold:
+        print("!!!Drifting left!!!")  # drifting left
+        cv2.fillPoly(img, np.int32([leftshape]), (255, 0, 0))
+    else:
+        pass #not drifting
+
+    # left lane line
+    cv2.line(img, (left_line_x1, int(lines_height_percent * img.shape[0])), (left_line_x2, int(img.shape[0])), leftColor, 10)
+    # right lane line
+    cv2.line(img, (right_line_x1, int(lines_height_percent * img.shape[0])), (right_line_x2, int(img.shape[0])), rightColor, 10)
+    # middle of frame line (yellow)
+    cv2.line(img, (midstat_line_x1, int(lines_height_percent * img.shape[0])), (midstat_line_x2, int(img.shape[0])),
+             middleStatColor, 10)
+    # middle of lane line (white)
+    cv2.line(img, (middyn_line_x1, int(lines_height_percent * img.shape[0])), (middyn_line_x2, int(img.shape[0])), middleDynColor,
+             10)
 
 
 
-    except ValueError:
-        # I keep getting errors for some reason, so I put this here. Idk if the error still persists.
-        pass
+    # except ValueError:
+    #     # I keep getting errors for some reason, so I put this here. Idk if the error still persists.
+    #     pass
 
 
 #################################################################
@@ -413,7 +525,7 @@ def get_drift_value(img, rho, theta, threshold, min_line_len, max_line_gap):
 # modify parameters.
 #################################################################
 def linedetect(img):
-    return hough_lines(img, 1, np.pi / 180, 10, 20, 100)
+    return hough_lines(img, 1, np.pi / 180, 30, 20, 10)
 
 
 #################################################################

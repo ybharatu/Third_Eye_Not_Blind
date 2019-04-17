@@ -110,7 +110,7 @@ def main(argv):
     input_img_buffer_list = []
     output_img_buffer_list = []
     process_list = []
-    for i in range(NUM_WORKERS):
+    for i in range(0, NUM_WORKERS):
         input_img_buffer_list.append(multiprocessing.Queue())
         output_img_buffer_list.append(multiprocessing.Queue())
         process_list.append(Process(target=processImage, args=(input_img_buffer_list[i], output_img_buffer_list[i], save, i)))
@@ -123,7 +123,7 @@ def main(argv):
     # Starts all the processes
     #################################################################
     img_handling_process.start()
-    for i in range(NUM_WORKERS):
+    for i in range(0, NUM_WORKERS):
         process_list[i].start()
 
     #################################################################
@@ -131,7 +131,7 @@ def main(argv):
     #################################################################
     img_handling_process.join()
     print("Finished Process 1")
-    for i in range(NUM_WORKERS):
+    for i in range(0, NUM_WORKERS):
         process_list[i].join()
         print("Finished Process " + str(i + 2))
 

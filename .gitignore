@@ -1,6 +1,8 @@
 .idea*
 processed_images/*
 source_images/live*
+source_images/*
+videos/*
 .DS*
 mystats.stats
 mystats_output.txt

@@ -1,4 +1,10 @@
 #################################################################
+# Import Packages
+#################################################################
+import multiprocessing
+
+
+#################################################################
 # Global Constants that can be accessed across modules
 #################################################################
 
@@ -6,7 +12,7 @@
 # Multiprocessing Information
 #################################################################
 NUM_WORKERS = 2
-NUM_FRAMES = 90
+NUM_FRAMES = 300
 
 #################################################################
 # GPIO Pin Values
@@ -21,6 +27,13 @@ chan_list = [DRIFT_LEFT_PIN, DRIFT_RIGHT_PIN, ERROR_PIN]
 #################################################################
 rightSlope, leftSlope, rightIntercept, leftIntercept = [], [], [], []
 rightSlopeDL, leftSlopeDL, rightInterceptDL, leftInterceptDL = [], [], [], []
+# rightSlopeDL = multiprocessing.Queue(5)
+# leftSlopeDL = multiprocessing.Queue(5)
+# rightInterceptDL = multiprocessing.Queue(5)
+# leftInterceptDL = multiprocessing.Queue(5)
+num_frame_persist = 10
+rightTTL = num_frame_persist
+leftTTL = num_frame_persist
 
 #################################################################
 # Other Global Variables
