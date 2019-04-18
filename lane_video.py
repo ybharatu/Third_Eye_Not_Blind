@@ -116,9 +116,15 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
         #################################################################
         if(left_drift_cnt >= num_drifts_thresh):
             print("Drifting Left!! img"+ str(img_print_num))
+            GPIO.output(DRIFT_LEFT_PIN, 1)
+            GPIO.output(DRIFT_RIGHT_PIN, 0)
         elif(right_drift_cnt >= num_drifts_thresh):
             print("Drifting Right!! img" + str(img_print_num))
+            GPIO.output(DRIFT_LEFT_PIN, 0)
+            GPIO.output(DRIFT_RIGHT_PIN, 1)
         else:
+            GPIO.output(DRIFT_LEFT_PIN, 0)
+            GPIO.output(DRIFT_RIGHT_PIN, 0)
             if(drift_value == 3):
                 print("Could not detect lines")
             else:
