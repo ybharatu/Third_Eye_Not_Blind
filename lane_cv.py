@@ -333,6 +333,7 @@ def draw_lines(img, lines, thickness=5):
     lanewidth = right_line_x1 - left_line_x1
     # print("lane width ==== " + str(lanewidth))
     if lanewidth < 70:
+        print("img number ===> ")
         # print("lane width ==== " + str(lanewidth))
         rightSlopeDL.pop(-1)
         rightInterceptDL.pop(-1)

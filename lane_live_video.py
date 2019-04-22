@@ -39,7 +39,7 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
     out_imgs = 0
     left_drift_cnt = 0
     right_drift_cnt = 0
-    num_drifts_thresh = 1
+    # num_drifts_thresh = 1
     lanes_working = 1
     #################################################################
     # Code to handle getting images and placing them into buffer.
@@ -70,18 +70,20 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
                     while input_buffers[curr_in_buffer].full():
                         break
                     image = frame.array
-                    input_buffers[curr_in_buffer].put(image)
-                    print("input image " + str(in_imgs) + " onto input buffer")
+                    smaller_img = resize_n_crop(image)
+                    input_buffers[curr_in_buffer].put(smaller_img)
+                    # print("input image " + str(in_imgs) + " onto input buffer")
+                    in_imgs += 1
                     curr_in_buffer = (curr_in_buffer + 1) % NUM_WORKERS
                     rawCapture.truncate(0)
                     #print("img " + str(in_imgs) + " put into input buffer")
-                    if(save):
+                    # if(save):
                         #mpimg.imsave("source_images/live_"+ str(in_imgs) + out_ext, image)
                         #ih = subprocess.Popen(["feh", "source_images/live_"+ str(in_imgs) + out_ext])
-                        ih = subprocess.Popen(["feh", "processed_images/aaa_"+ str(int(in_imgs / NUM_WORKERS)) + "_worker_0"  + out_ext])
-                        time.sleep(0.5)
+                        # ih = subprocess.Popen(["feh", "processed_images/aaa_"+ str(int(in_imgs / NUM_WORKERS)) + "_worker_0"  + out_ext])
+                        # time.sleep(0.5)
 
-                    in_imgs += 1
+
 
                     #################################################################
                     # OUTPUT LOGIC copied here
@@ -89,6 +91,10 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
                     if(output_buffers[curr_out_buffer].empty()):
                         print("output buffer empty")
                         continue
+                    #################################################################
+                    # Incraments Appropriate drift counter Key: left drift = -1,
+                    # right drift = 1, no drift = 0
+                    #################################################################
                     drift_value = output_buffers[curr_out_buffer].get()
                     print("output image " + str(out_imgs) + "from output buffer")
                     curr_out_buffer = (curr_out_buffer + 1) % NUM_WORKERS
@@ -112,8 +118,8 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
                         lane_working = 0
                     else:
                         print("Unexpected Value Obtained in Output buffer")
-                    out_imgs += 1
-                    """
+
+
                     # Note: Need to tell micro that the system is drifting
                     if(left_drift_cnt >= num_drifts_thresh):
                         print("Drifting Left!!")
@@ -127,52 +133,64 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
                         print("Not Drifting")
                         GPIO.output(DRIFT_LEFT_PIN, 0)
                         GPIO.output(DRIFT_RIGHT_PIN, 0)
-                    if (save):
-                        ih.kill()
-                    
-                    """
+                    else:
+                        print("Could not detect lines")
+                        # need to assert error pin here!
+                    # if (save):
+                    #     ih.kill()
+                    out_imgs += 1
+
+
         #################################################################
-        # Consuming elements in the output buffer and returning drift
-        # values
+        # once all images have been put onto input buffer, there will still be some
+        # images to process on the output buffer. the following code will finish
+        # the output buffer
         #################################################################
         if(output_buffers[curr_out_buffer].empty()):
             print("output buffer empty")
             continue
 
-        #################################################################
-        # Incraments Appropriate drift counter Key: left drift = -1,
-        # right drift = 1, no drift = 0
-        #################################################################
         drift_value = output_buffers[curr_out_buffer].get()
         print("output image " + str(out_imgs) + "from output buffer")
         curr_out_buffer = (curr_out_buffer + 1) % NUM_WORKERS
 
-        #print("img " + str(out_imgs) + " taken off output buffer")
-        #print("Drift Value from output buffer = " + str(drift_value) + ", PID: " + str(os.getpid()))
-        if(drift_value == -1):
+        if (drift_value == -1):
             right_drift_cnt = 0
             left_drift_cnt += 1
-        elif(drift_value == 1):
+            lane_working = 1
+        elif (drift_value == 1):
             right_drift_cnt += 1
             left_drift_cnt = 0
+            lane_working = 1
         elif (drift_value == 0):
             right_drift_cnt = 0
             left_drift_cnt = 0
+            lane_working = 1
         elif (drift_value == 3):
             print("Could not detect lines")
+            lane_working = 0
         else:
             print("Unexpected Value Obtained in Output buffer")
-        out_imgs += 1
-        #################################################################
-        # Note: Need to tell micro that the system is drifting
-        #################################################################
-        if(left_drift_cnt >= num_drifts_thresh):
+
+            # Note: Need to tell micro that the system is drifting
+        if (left_drift_cnt >= num_drifts_thresh):
             print("Drifting Left!!")
-        elif(right_drift_cnt >= num_drifts_thresh):
+            GPIO.output(DRIFT_LEFT_PIN, 1)
+            GPIO.output(DRIFT_RIGHT_PIN, 0)
+        elif (right_drift_cnt >= num_drifts_thresh):
             print("Drifting Right!!")
-        else:
-            #print("Not Drifting " + "left_cnt: " + str(left_drift_cnt) + " right_cnt: " + str(right_drift_cnt))
+            GPIO.output(DRIFT_LEFT_PIN, 0)
+            GPIO.output(DRIFT_RIGHT_PIN, 1)
+        elif (lane_working):
             print("Not Drifting")
+            GPIO.output(DRIFT_LEFT_PIN, 0)
+            GPIO.output(DRIFT_RIGHT_PIN, 0)
+        else:
+            print("Could not detect lines")
+            # need to assert error pin here!
+            # if (save):
+            #     ih.kill()
+        out_imgs += 1
         
 
 
@@ -205,32 +223,51 @@ def processImage(img_buf, out_buf, save, which_worker):
         #################################################################
         # Crops region of interest on image based on a polygon
         #################################################################
-        interest = roi(image)
+        # interest = roi(image)
 
         #################################################################
         # Applies a color filter to the cropped image
         #################################################################
-        filterimg = color_filter(interest)
+        filterimg = color_filter(image)
 
         #################################################################
         # Applies Canny Edge detection on the grayscale image
         #################################################################
-        canny = cv2.Canny(grayscale(filterimg), 50, 120)
+        # canny = cv2.Canny(grayscale(filterimg), 50, 120)
+        canny_img = canny(filterimg)
+
+        #################################################################
+        # Crops region of interest on image based on a polygon
+        #################################################################
+        interest = roi(canny_img)
 
         #################################################################
         # If save flag is asserted, lane lines are drawn over the image.
         # Lines specifying the vehicle and the center of the lanes are
         # also drawn. The resulting image is then saved to a file
         #################################################################
+        # if save:
+        #     myline = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
+        #     weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
+        #     mpimg.imsave("processed_images/aaa_"+ str(imgs) + "_worker_" + str(which_worker)+out_ext, weighted_img)
         if save:
-            myline = hough_lines(canny, 1, np.pi / 180, 10, 20, 5)
+            # print("Working on img" + str(imgs) + " worker " + str(which_worker))
+            #myline = hough_lines(interest, 1, np.pi / 180, 10, 20, 5)
+            myline = linedetect(interest)
             weighted_img = cv2.addWeighted(myline, 1, image, 0.8, 0)
-            mpimg.imsave("processed_images/aaa_"+ str(imgs) + "_worker_" + str(which_worker)+out_ext, weighted_img)
+            canny_rgb = cv2.cvtColor(interest, cv2.COLOR_GRAY2RGB)
+            weighted_img_2 = cv2.addWeighted(weighted_img, 1, canny_rgb, 0.8, 0)
+            #print("cannyrgb.shape = " + str(canny_rgb.shape))
+            mpimg.imsave("processed_images/vidimglive_"+ str(imgs) + "_worker_" + str(which_worker)+out_ext, weighted_img_2)
+
+
+
 
         #################################################################
         # Get current drifting value based on image
         #################################################################
-        dist_off = get_drift_value(canny, 1, np.pi / 180, 10, 20, 5)
+        # dist_off = get_drift_value(canny, 1, np.pi / 180, 10, 20, 5)
+        dist_off = get_drift_value(interest)
 
         #################################################################
         # Wait until output buffer is empty
