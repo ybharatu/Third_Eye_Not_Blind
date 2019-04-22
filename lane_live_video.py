@@ -89,14 +89,14 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
                     # OUTPUT LOGIC copied here
                     #################################################################
                     if(output_buffers[curr_out_buffer].empty()):
-                        print("output buffer empty")
+                        # print("output buffer empty")
                         continue
                     #################################################################
                     # Incraments Appropriate drift counter Key: left drift = -1,
                     # right drift = 1, no drift = 0
                     #################################################################
                     drift_value = output_buffers[curr_out_buffer].get()
-                    print("output image " + str(out_imgs) + "from output buffer")
+                    # print("output image " + str(out_imgs) + " from output buffer")
                     curr_out_buffer = (curr_out_buffer + 1) % NUM_WORKERS
 
                     #print("img " + str(out_imgs) + " taken off output buffer")
@@ -114,7 +114,6 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
                         left_drift_cnt = 0
                         lane_working = 1
                     elif (drift_value == 3):
-                        print("Could not detect lines")
                         lane_working = 0
                     else:
                         print("Unexpected Value Obtained in Output buffer")
@@ -130,7 +129,7 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
                         GPIO.output(DRIFT_LEFT_PIN, 0)
                         GPIO.output(DRIFT_RIGHT_PIN, 1)
                     elif(lane_working):
-                        print("Not Drifting")
+                        print("Not Drifting    img" + str(out_imgs))
                         GPIO.output(DRIFT_LEFT_PIN, 0)
                         GPIO.output(DRIFT_RIGHT_PIN, 0)
                     else:
@@ -147,11 +146,11 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
         # the output buffer
         #################################################################
         if(output_buffers[curr_out_buffer].empty()):
-            print("output buffer empty")
+            # print("output buffer empty")
             continue
 
         drift_value = output_buffers[curr_out_buffer].get()
-        print("output image " + str(out_imgs) + "from output buffer")
+        # print("output image " + str(out_imgs) + " from output buffer")
         curr_out_buffer = (curr_out_buffer + 1) % NUM_WORKERS
 
         if (drift_value == -1):
@@ -167,7 +166,6 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
             left_drift_cnt = 0
             lane_working = 1
         elif (drift_value == 3):
-            print("Could not detect lines")
             lane_working = 0
         else:
             print("Unexpected Value Obtained in Output buffer")
@@ -182,7 +180,7 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
             GPIO.output(DRIFT_LEFT_PIN, 0)
             GPIO.output(DRIFT_RIGHT_PIN, 1)
         elif (lane_working):
-            print("Not Drifting")
+            print("Not Drifting    img" + str(out_imgs))
             GPIO.output(DRIFT_LEFT_PIN, 0)
             GPIO.output(DRIFT_RIGHT_PIN, 0)
         else:
