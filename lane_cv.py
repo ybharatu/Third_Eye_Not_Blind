@@ -83,8 +83,8 @@ def gaussian_blur(img, kernel_size):
 def roi(img):
     x = int(img.shape[1])  # width
     y = int(img.shape[0])  # height
-    topline_percent_x = 0.3  # proportion of base line you want top line of trapazoid to be  /___\
-    topline_percent_y = 0.80  # how tall you want the trapazoid to be
+    topline_percent_x = 0.4  # proportion of base line you want top line of trapazoid to be  /___\
+    topline_percent_y = 0.7  # how tall you want the trapazoid to be
     leftover = (1 - topline_percent_x) * x
     leftpoint_x = leftover / 2
     rightpoint_x = leftpoint_x + (topline_percent_x) * x
@@ -126,8 +126,8 @@ def roi(img):
 def roi_return_array(img):
     x = int(img.shape[1])  # width
     y = int(img.shape[0])  # height
-    topline_percent_x = 0.3  # proportion of base line you want top line of trapazoid to be  /___\
-    topline_percent_y = 0.80  # how tall you want the trapazoid to be
+    topline_percent_x = 0.4  # proportion of base line you want top line of trapazoid to be  /___\
+    topline_percent_y = 0.7  # how tall you want the trapazoid to be
     leftover = (1 - topline_percent_x) * x
     leftpoint_x = leftover / 2
     rightpoint_x = leftpoint_x + (topline_percent_x) * x
@@ -165,7 +165,7 @@ def resize_n_crop(image):
     resized = image
     # crop image
     croptop_percent_y = 0  # crop this percent of image from the top half
-    cropbottom_percent_y = 0.8 #crop this percent of image from the bottom half
+    cropbottom_percent_y = 0.75 #crop this percent of image from the bottom half
     cropped = resized[int(resized.shape[0] * croptop_percent_y):int(resized.shape[0] * cropbottom_percent_y), 0:resized.shape[1]]  # img[y:y+h, x:x+w]
     return cropped
 
@@ -210,7 +210,7 @@ def draw_lines(img, lines, thickness=5):
     drift_threshold = 50
     img_mid_point = img.shape[1] / 2
     #print("img_mid_point = " + str(img_mid_point))
-    lines_height_percent = 0.80
+    lines_height_percent = 0.70
     foundleft = False
     foundright = False
 
@@ -332,8 +332,8 @@ def draw_lines(img, lines, thickness=5):
 
     lanewidth = right_line_x1 - left_line_x1
     # print("lane width ==== " + str(lanewidth))
-    if lanewidth < 70:
-        print("img number ===> ")
+    if lanewidth < 80:
+        print("lane width ===> " + str(lanewidth))
         # print("lane width ==== " + str(lanewidth))
         rightSlopeDL.pop(-1)
         rightInterceptDL.pop(-1)
@@ -368,7 +368,7 @@ def draw_lines(img, lines, thickness=5):
 
     # make roi polygon
     shape = roi_return_array(img)
-    # cv2.fillPoly(img, np.int32([shape]), (0,0,255))
+    cv2.fillPoly(img, np.int32([shape]), (0,0,255))
 
     leftshape = np.array([[int(50), int(50)], [int(100), int(50)], [int(100), int(100)], [int(50), int(100)]])
     rightshape = np.array([[int(img.shape[1] - 100), int(50)], [int(img.shape[1] - 50), int(50)], [int(img.shape[1] - 50), int(100)], [int(img.shape[1] - 100), int(100)]])
@@ -414,7 +414,7 @@ def find_position_in_lines(img, lines):
     global rightSlope, leftSlope, rightIntercept, leftIntercept
     global num_frame_persist
     drift_threshold = 45
-    lines_height_percent = 0.80
+    lines_height_percent = 0.70
     img_mid_point = img.shape[1] / 2
     # single frame variables
     rightSlopeSF = []
@@ -495,7 +495,7 @@ def find_position_in_lines(img, lines):
     right_line_x1 = int((lines_height_percent * img.shape[0] - rightavgIntercept) / rightavgSlope)
 
     lanewidth = right_line_x1 - left_line_x1
-    if lanewidth < 70:
+    if lanewidth < 80:
         # print("lane width ==== " + str(lanewidth))
         rightSlope.pop(-1)
         rightIntercept.pop(-1)

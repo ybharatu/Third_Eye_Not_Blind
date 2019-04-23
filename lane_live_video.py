@@ -48,148 +48,151 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
     # same image is processed NUM_FRAMES times in order to provide
     # meaningful timing information
     #################################################################
-    while(in_imgs < NUM_FRAMES or out_imgs < NUM_FRAMES):
-        #################################################################
-        # Code to handle getting images from a source (either a video
-        # or an image
-        #################################################################
+    #while(in_imgs < NUM_FRAMES or out_imgs < NUM_FRAMES):
+    try:
+        while(1):
+            #################################################################
+            # Code to handle getting images from a source (either a video
+            # or an image
+            #################################################################
 
-        if (in_imgs < NUM_FRAMES):
+            #if (in_imgs < NUM_FRAMES):
+            if (1):
+                import picamera
+                from picamera.array import PiRGBArray
 
-            import picamera
-            from picamera.array import PiRGBArray
+                with picamera.PiCamera() as camera:
+                    camera.resolution = (640, 480)
+                    rawCapture = PiRGBArray(camera)
+                    time.sleep(0.1)  # wait for camera to warm up
 
-            with picamera.PiCamera() as camera:
-                camera.resolution = (640, 480)
-                rawCapture = PiRGBArray(camera)
-                time.sleep(0.1)  # wait for camera to warm up
-
-                for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=True):  #final version should have this for loop as outer for loop
-                    if in_imgs >= NUM_FRAMES:
-                        break
-                    while input_buffers[curr_in_buffer].full():
-                        break
-                    image = frame.array
-                    smaller_img = resize_n_crop(image)
-                    input_buffers[curr_in_buffer].put(smaller_img)
-                    # print("input image " + str(in_imgs) + " onto input buffer")
-                    in_imgs += 1
-                    curr_in_buffer = (curr_in_buffer + 1) % NUM_WORKERS
-                    rawCapture.truncate(0)
-                    #print("img " + str(in_imgs) + " put into input buffer")
-                    # if(save):
-                        #mpimg.imsave("source_images/live_"+ str(in_imgs) + out_ext, image)
-                        #ih = subprocess.Popen(["feh", "source_images/live_"+ str(in_imgs) + out_ext])
-                        # ih = subprocess.Popen(["feh", "processed_images/aaa_"+ str(int(in_imgs / NUM_WORKERS)) + "_worker_0"  + out_ext])
-                        # time.sleep(0.5)
-
-
-
-                    #################################################################
-                    # OUTPUT LOGIC copied here
-                    #################################################################
-                    if(output_buffers[curr_out_buffer].empty()):
-                        # print("output buffer empty")
-                        continue
-                    #################################################################
-                    # Incraments Appropriate drift counter Key: left drift = -1,
-                    # right drift = 1, no drift = 0
-                    #################################################################
-                    drift_value = output_buffers[curr_out_buffer].get()
-                    # print("output image " + str(out_imgs) + " from output buffer")
-                    curr_out_buffer = (curr_out_buffer + 1) % NUM_WORKERS
-
-                    #print("img " + str(out_imgs) + " taken off output buffer")
-                    #print("Drift Value from output buffer = " + str(drift_value) + ", PID: " + str(os.getpid()))
-                    if(drift_value == -1):
-                        right_drift_cnt = 0
-                        left_drift_cnt += 1
-                        lane_working = 1
-                    elif(drift_value == 1):
-                        right_drift_cnt += 1
-                        left_drift_cnt = 0
-                        lane_working = 1
-                    elif (drift_value == 0):
-                        right_drift_cnt = 0
-                        left_drift_cnt = 0
-                        lane_working = 1
-                    elif (drift_value == 3):
-                        lane_working = 0
-                    else:
-                        print("Unexpected Value Obtained in Output buffer")
+                    for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=True):  #final version should have this for loop as outer for loop
+    #                    if in_imgs >= NUM_FRAMES:
+    #                        break
+                        while input_buffers[curr_in_buffer].full():
+                            break
+                        image = frame.array
+                        smaller_img = resize_n_crop(image)
+                        input_buffers[curr_in_buffer].put(smaller_img)
+                        # print("input image " + str(in_imgs) + " onto input buffer")
+                        in_imgs += 1
+                        curr_in_buffer = (curr_in_buffer + 1) % NUM_WORKERS
+                        rawCapture.truncate(0)
+                        #print("img " + str(in_imgs) + " put into input buffer")
+                        # if(save):
+                            #mpimg.imsave("source_images/live_"+ str(in_imgs) + out_ext, image)
+                            #ih = subprocess.Popen(["feh", "source_images/live_"+ str(in_imgs) + out_ext])
+                            # ih = subprocess.Popen(["feh", "processed_images/aaa_"+ str(int(in_imgs / NUM_WORKERS)) + "_worker_0"  + out_ext])
+                            # time.sleep(0.5)
 
 
-                    # Note: Need to tell micro that the system is drifting
-                    if(left_drift_cnt >= num_drifts_thresh):
-                        print("Drifting Left!!")
-                        GPIO.output(DRIFT_LEFT_PIN, 1)
-                        GPIO.output(DRIFT_RIGHT_PIN, 0)
-                    elif(right_drift_cnt >= num_drifts_thresh):
-                        print("Drifting Right!!")
-                        GPIO.output(DRIFT_LEFT_PIN, 0)
-                        GPIO.output(DRIFT_RIGHT_PIN, 1)
-                    elif(lane_working):
-                        print("Not Drifting    img" + str(out_imgs))
-                        GPIO.output(DRIFT_LEFT_PIN, 0)
-                        GPIO.output(DRIFT_RIGHT_PIN, 0)
-                    else:
-                        print("Could not detect lines")
-                        # need to assert error pin here!
-                    # if (save):
-                    #     ih.kill()
-                    out_imgs += 1
+
+                        #################################################################
+                        # OUTPUT LOGIC copied here
+                        #################################################################
+                        if(output_buffers[curr_out_buffer].empty()):
+                            # print("output buffer empty")
+                            continue
+                        #################################################################
+                        # Incraments Appropriate drift counter Key: left drift = -1,
+                        # right drift = 1, no drift = 0
+                        #################################################################
+                        drift_value = output_buffers[curr_out_buffer].get()
+                        # print("output image " + str(out_imgs) + " from output buffer")
+                        curr_out_buffer = (curr_out_buffer + 1) % NUM_WORKERS
+
+                        #print("img " + str(out_imgs) + " taken off output buffer")
+                        #print("Drift Value from output buffer = " + str(drift_value) + ", PID: " + str(os.getpid()))
+                        if(drift_value == -1):
+                            right_drift_cnt = 0
+                            left_drift_cnt += 1
+                            lane_working = 1
+                        elif(drift_value == 1):
+                            right_drift_cnt += 1
+                            left_drift_cnt = 0
+                            lane_working = 1
+                        elif (drift_value == 0):
+                            right_drift_cnt = 0
+                            left_drift_cnt = 0
+                            lane_working = 1
+                        elif (drift_value == 3):
+                            lane_working = 0
+                        else:
+                            print("Unexpected Value Obtained in Output buffer")
 
 
-        #################################################################
-        # once all images have been put onto input buffer, there will still be some
-        # images to process on the output buffer. the following code will finish
-        # the output buffer
-        #################################################################
-        if(output_buffers[curr_out_buffer].empty()):
-            # print("output buffer empty")
-            continue
+                        # Note: Need to tell micro that the system is drifting
+                        if(left_drift_cnt >= num_drifts_thresh):
+                            print("Drifting Left!!")
+                            GPIO.output(DRIFT_LEFT_PIN, 1)
+                            GPIO.output(DRIFT_RIGHT_PIN, 0)
+                        elif(right_drift_cnt >= num_drifts_thresh):
+                            print("Drifting Right!!")
+                            GPIO.output(DRIFT_LEFT_PIN, 0)
+                            GPIO.output(DRIFT_RIGHT_PIN, 1)
+                        elif(lane_working):
+                            print("Not Drifting    img" + str(out_imgs))
+                            GPIO.output(DRIFT_LEFT_PIN, 0)
+                            GPIO.output(DRIFT_RIGHT_PIN, 0)
+                        else:
+                            print("Could not detect lines")
+                            # need to assert error pin here!
+                        # if (save):
+                        #     ih.kill()
+                        out_imgs += 1
 
-        drift_value = output_buffers[curr_out_buffer].get()
-        # print("output image " + str(out_imgs) + " from output buffer")
-        curr_out_buffer = (curr_out_buffer + 1) % NUM_WORKERS
 
-        if (drift_value == -1):
-            right_drift_cnt = 0
-            left_drift_cnt += 1
-            lane_working = 1
-        elif (drift_value == 1):
-            right_drift_cnt += 1
-            left_drift_cnt = 0
-            lane_working = 1
-        elif (drift_value == 0):
-            right_drift_cnt = 0
-            left_drift_cnt = 0
-            lane_working = 1
-        elif (drift_value == 3):
-            lane_working = 0
-        else:
-            print("Unexpected Value Obtained in Output buffer")
+            #################################################################
+            # once all images have been put onto input buffer, there will still be some
+            # images to process on the output buffer. the following code will finish
+            # the output buffer
+            #################################################################
+            if(output_buffers[curr_out_buffer].empty()):
+                # print("output buffer empty")
+                continue
 
-            # Note: Need to tell micro that the system is drifting
-        if (left_drift_cnt >= num_drifts_thresh):
-            print("Drifting Left!!")
-            GPIO.output(DRIFT_LEFT_PIN, 1)
-            GPIO.output(DRIFT_RIGHT_PIN, 0)
-        elif (right_drift_cnt >= num_drifts_thresh):
-            print("Drifting Right!!")
-            GPIO.output(DRIFT_LEFT_PIN, 0)
-            GPIO.output(DRIFT_RIGHT_PIN, 1)
-        elif (lane_working):
-            print("Not Drifting    img" + str(out_imgs))
-            GPIO.output(DRIFT_LEFT_PIN, 0)
-            GPIO.output(DRIFT_RIGHT_PIN, 0)
-        else:
-            print("Could not detect lines")
-            # need to assert error pin here!
-            # if (save):
-            #     ih.kill()
-        out_imgs += 1
-        
+            drift_value = output_buffers[curr_out_buffer].get()
+            # print("output image " + str(out_imgs) + " from output buffer")
+            curr_out_buffer = (curr_out_buffer + 1) % NUM_WORKERS
+
+            if (drift_value == -1):
+                right_drift_cnt = 0
+                left_drift_cnt += 1
+                lane_working = 1
+            elif (drift_value == 1):
+                right_drift_cnt += 1
+                left_drift_cnt = 0
+                lane_working = 1
+            elif (drift_value == 0):
+                right_drift_cnt = 0
+                left_drift_cnt = 0
+                lane_working = 1
+            elif (drift_value == 3):
+                lane_working = 0
+            else:
+                print("Unexpected Value Obtained in Output buffer")
+
+                # Note: Need to tell micro that the system is drifting
+            if (left_drift_cnt >= num_drifts_thresh):
+                print("Drifting Left!!")
+                GPIO.output(DRIFT_LEFT_PIN, 1)
+                GPIO.output(DRIFT_RIGHT_PIN, 0)
+            elif (right_drift_cnt >= num_drifts_thresh):
+                print("Drifting Right!!")
+                GPIO.output(DRIFT_LEFT_PIN, 0)
+                GPIO.output(DRIFT_RIGHT_PIN, 1)
+            elif (lane_working):
+                print("Not Drifting    img" + str(out_imgs))
+                GPIO.output(DRIFT_LEFT_PIN, 0)
+                GPIO.output(DRIFT_RIGHT_PIN, 0)
+            else:
+                print("Could not detect lines")
+                # need to assert error pin here!
+                # if (save):
+                #     ih.kill()
+            out_imgs += 1
+    except KeyboardInterrupt:
+        GPIO.cleanup()
 
 
 #################################################################
@@ -205,7 +208,8 @@ def processImage(img_buf, out_buf, save, which_worker):
     # Iterate until the process finished its share of images
     # (specified by NUM_FRAMES / NUM_WORKERS)
     #################################################################
-    while imgs is not int(NUM_FRAMES / NUM_WORKERS):
+    #while imgs is not int(NUM_FRAMES / NUM_WORKERS):
+    while(1):
         #################################################################
         # Waits until the Image Handler process puts an image into the
         # input buffer.
