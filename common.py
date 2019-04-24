@@ -39,5 +39,5 @@ leftTTL = num_frame_persist
 # Other Global Variables
 #################################################################
 out_ext = ".jpg"
-num_drifts_thresh = 3
+num_drifts_thresh = 2
 gpio_flag = True

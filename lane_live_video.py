@@ -30,7 +30,7 @@ except ImportError:
 # output buffer.
 #################################################################
 def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
-
+    #while(1):
     curr_in_buffer = 0
     curr_out_buffer = 0
     #input_buffers = [input_img_1, input_img_2]
@@ -41,6 +41,7 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
     right_drift_cnt = 0
     # num_drifts_thresh = 1
     lanes_working = 1
+    #drift_value = 0
     #################################################################
     # Code to handle getting images and placing them into buffer.
     # Could be either from a video (indicated by vid = True) or an
@@ -50,30 +51,33 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
     #################################################################
     #while(in_imgs < NUM_FRAMES or out_imgs < NUM_FRAMES):
     try:
-        while(1):
+        while(in_imgs < NUM_FRAMES):
+        #while(1):
             #################################################################
             # Code to handle getting images from a source (either a video
             # or an image
             #################################################################
 
-            #if (in_imgs < NUM_FRAMES):
-            if (1):
+            if (in_imgs < NUM_FRAMES):
+            #if (1):
                 import picamera
                 from picamera.array import PiRGBArray
 
                 with picamera.PiCamera() as camera:
                     camera.resolution = (640, 480)
+                    #camera.framerate = 10
                     rawCapture = PiRGBArray(camera)
                     time.sleep(0.1)  # wait for camera to warm up
 
                     for frame in camera.capture_continuous(rawCapture, format='bgr', use_video_port=True):  #final version should have this for loop as outer for loop
-    #                    if in_imgs >= NUM_FRAMES:
-    #                        break
-                        while input_buffers[curr_in_buffer].full():
+                        if in_imgs >= NUM_FRAMES:
                             break
+                        while input_buffers[curr_in_buffer].full():
+                            pass
                         image = frame.array
                         smaller_img = resize_n_crop(image)
                         input_buffers[curr_in_buffer].put(smaller_img)
+                        #print("Size of Input buffer: " + str(input_buffers[curr_in_buffer].qsize()))
                         # print("input image " + str(in_imgs) + " onto input buffer")
                         in_imgs += 1
                         curr_in_buffer = (curr_in_buffer + 1) % NUM_WORKERS
@@ -90,6 +94,7 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
                         #################################################################
                         # OUTPUT LOGIC copied here
                         #################################################################
+                        #print("Size of Output buffer: " + str(output_buffers[curr_out_buffer].qsize()))
                         if(output_buffers[curr_out_buffer].empty()):
                             # print("output buffer empty")
                             continue
@@ -123,11 +128,11 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
 
                         # Note: Need to tell micro that the system is drifting
                         if(left_drift_cnt >= num_drifts_thresh):
-                            print("Drifting Left!!")
+                            print("Drifting Left!! " + str(out_imgs))
                             GPIO.output(DRIFT_LEFT_PIN, 1)
                             GPIO.output(DRIFT_RIGHT_PIN, 0)
                         elif(right_drift_cnt >= num_drifts_thresh):
-                            print("Drifting Right!!")
+                            print("Drifting Right!! " + str(out_imgs))
                             GPIO.output(DRIFT_LEFT_PIN, 0)
                             GPIO.output(DRIFT_RIGHT_PIN, 1)
                         elif(lane_working):
@@ -135,7 +140,7 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
                             GPIO.output(DRIFT_LEFT_PIN, 0)
                             GPIO.output(DRIFT_RIGHT_PIN, 0)
                         else:
-                            print("Could not detect lines")
+                            print("Could not detect lines " + str(out_imgs))
                             # need to assert error pin here!
                         # if (save):
                         #     ih.kill()
@@ -148,7 +153,6 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
             # the output buffer
             #################################################################
             if(output_buffers[curr_out_buffer].empty()):
-                # print("output buffer empty")
                 continue
 
             drift_value = output_buffers[curr_out_buffer].get()
@@ -193,6 +197,7 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
             out_imgs += 1
     except KeyboardInterrupt:
         GPIO.cleanup()
+        
 
 
 #################################################################
@@ -202,19 +207,24 @@ def handle_images(input_buffers, output_buffers, vid, filename, live, im, save):
 # buffer. Can be modified to include timing information
 #################################################################
 def processImage(img_buf, out_buf, save, which_worker):
-
+    #while(1):
     imgs = 0 # Counter to keep track of number of images
     #################################################################
     # Iterate until the process finished its share of images
     # (specified by NUM_FRAMES / NUM_WORKERS)
     #################################################################
-    #while imgs is not int(NUM_FRAMES / NUM_WORKERS):
-    while(1):
+    while imgs is not int(NUM_FRAMES / NUM_WORKERS):
+    #while(1):
+        if(imgs >= int(NUM_FRAMES / NUM_WORKERS)):
+            break;
         #################################################################
         # Waits until the Image Handler process puts an image into the
         # input buffer.
         #################################################################
         while img_buf.empty():
+            if imgs >= int(NUM_FRAMES / NUM_WORKERS):
+                out_buf.put(0)
+                continue
             pass
 
         #################################################################

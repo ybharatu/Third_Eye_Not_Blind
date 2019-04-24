@@ -51,6 +51,7 @@ def main(argv):
     save = False
     live = False
     im = False
+    q_sz = 5
 
     try:
         opts, args = getopt.getopt(argv, "hv:sli:f:", ["help", "video", "save", "live", "image", "filename="])
@@ -111,8 +112,8 @@ def main(argv):
     output_img_buffer_list = []
     process_list = []
     for i in range(0, NUM_WORKERS):
-        input_img_buffer_list.append(multiprocessing.Queue())
-        output_img_buffer_list.append(multiprocessing.Queue())
+        input_img_buffer_list.append(multiprocessing.Queue(q_sz))
+        output_img_buffer_list.append(multiprocessing.Queue(q_sz))
         process_list.append(Process(target=processImage, args=(input_img_buffer_list[i], output_img_buffer_list[i], save, i)))
 
     img_handling_process = Process(target=handle_images, args=(input_img_buffer_list,\
