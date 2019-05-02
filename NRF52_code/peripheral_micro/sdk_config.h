@@ -12638,10 +12638,6 @@
 #define NRF_SDH_BLE_STACK_OBSERVER_PRIO 0
 #endif
 
-// <o> NRF_SDH_SOC_STACK_OBSERVER_PRIO  
-// <i> This setting configures the priority with which SoC events are processed with respect to other events coming from the stack.
-// <i> Modify this setting if you need to have SoC events dispatched before or after other stack events, such as ANT or BLE.
-// <i> Zero is the highest priority.
 
 #ifndef NRF_SDH_SOC_STACK_OBSERVER_PRIO
 #define NRF_SDH_SOC_STACK_OBSERVER_PRIO 0
