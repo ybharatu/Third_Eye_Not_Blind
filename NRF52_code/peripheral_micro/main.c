@@ -103,7 +103,7 @@
 #define TEST_LED                        22
 #define SENSOR_PIN                      6
 
-#define DEVICE_NAME                     "Yash_Blinky"                 /**< Name of device. Will be included in the advertising data. */
+#define DEVICE_NAME                     "Left_Peripheral"                 /**< Name of device. Will be included in the advertising data. */
 
 #define APP_BLE_OBSERVER_PRIO           3                                       /**< Application's BLE observer priority. You shouldn't need to modify this value. */
 #define APP_BLE_CONN_CFG_TAG            1                                       /**< A tag identifying the SoftDevice BLE configuration. */
@@ -129,7 +129,6 @@
 #define BLUE                            0x001F
 #define BLACK                           0xFFFF
 
-#define BUFFER_SIZE                     60
 #define CENTER                          0
 #define LEFT                            1
 #define RIGHT                           2
@@ -151,7 +150,7 @@ static uint8_t m_enc_scan_response_data[BLE_GAP_ADV_SET_DATA_SIZE_MAX];         
 
 uint32_t distance = 0;
 uint32_t atd_result = 0;
-uint32_t prev_value;
+uint32_t prev_value = 1;
 uint32_t far_count = 5;
 uint32_t close_count = 0;
 
@@ -209,9 +208,9 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
 }
 
 
-/**@brief Function for the LEDs initialization.
+/**@brief Function for the GPIO Initialization
  *
- * @details Initializes all LEDs used by the application.
+ * @details Initializes all gpio pins used by the peripheral board.
  */
 static void gpio_init(void)
 {
@@ -234,8 +233,6 @@ nrfx_timer_event_handler_t LVEZ4_measure(void){
     ret_code_t err_code;
     
     nrf_drv_saadc_sample();
-
-    //NRF_LOG_INFO("Average Distance: %d", average);
    
     /************************************************
     * If Object is close and was previously far,
@@ -246,11 +243,12 @@ nrfx_timer_event_handler_t LVEZ4_measure(void){
       NRF_LOG_FLUSH();
       prev_value = 1;
        
-      //NRF_LOG_INFO("Object is close! %d", close_count);
+      NRF_LOG_INFO("Object is close! %d", close_count);
       err_code = ble_lbs_on_button_change(m_conn_handle, &m_lbs, 1);
       if (err_code != NRF_SUCCESS &&
         err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
-        err_code != NRF_ERROR_INVALID_STATE)
+        err_code != NRF_ERROR_INVALID_STATE &&
+        err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)
       {
         APP_ERROR_CHECK(err_code);
       }
@@ -276,7 +274,8 @@ nrfx_timer_event_handler_t LVEZ4_measure(void){
 
       if (err_code != NRF_SUCCESS &&
         err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
-        err_code != NRF_ERROR_INVALID_STATE)
+        err_code != NRF_ERROR_INVALID_STATE &&
+        err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)
       {
         APP_ERROR_CHECK(err_code);
       }
@@ -319,6 +318,8 @@ void saadc_callback(nrf_drv_saadc_evt_t const * p_event)
         p_value = p_event->data.done.p_buffer[0];
         distance = p_value;
 
+        NRF_LOG_INFO("Dist: %d", distance);
+
         if(first){
           average = p_value;
           new_average = p_value;
@@ -328,10 +329,10 @@ void saadc_callback(nrf_drv_saadc_evt_t const * p_event)
 //            NRF_LOG_INFO("BAD DATA Boundary is: %d - %d",(average - sqrt(variance)), (average + sqrt(variance)) );
 //            return;
 //          }
-          NRF_LOG_INFO("GOOD DATA");
+          //NRF_LOG_INFO("GOOD DATA");
           new_average = average + ((p_value - average) / BUFFER_SIZE);
           //new_average = average + (p_value / BUFFER_SIZE);
-          NRF_LOG_INFO("PREV AVERAGE: %d  NEW AVERAGE: %d  ACTUAL DISTANCE: %d", average, new_average, p_value);
+          //NRF_LOG_INFO("PREV AVERAGE: %d  NEW AVERAGE: %d  ACTUAL DISTANCE: %d", average, new_average, p_value);
           var_sum = var_sum + (p_value - average)*(p_value - new_average);
           average = new_average;
           variance = var_sum / (BUFFER_SIZE - 1);
@@ -450,7 +451,6 @@ static void on_conn_params_evt(ble_conn_params_evt_t * p_evt)
         APP_ERROR_CHECK(err_code);
     }
 }
-
 
 /**@brief Function for handling a Connection Parameters error.
  *
@@ -807,7 +807,7 @@ int main(void)
     ret_code_t err_code;
     int send_bit = 1;
     int i = 0;
-    // Initialize.
+    //Micro Modules initializations
     log_init();
     timer_init();
     gpio_init();
@@ -822,17 +822,16 @@ int main(void)
     saadc_init();
     simple_timer_init();
     
-
-
+    //BLE Initializations
+    
     // Start execution.
-    NRF_LOG_INFO("Blinky CENTRAL example started.");
+    NRF_LOG_INFO("Blinky Peripheral example started.");
     advertising_start();
-
-    nrf_gpio_pin_write(SENSOR_PIN,1);
 
     // Enter main loop.
     for (;;)
     {
+#if(TEST_MODE)
 //        nrf_delay_ms(500);
 //        send_bit = !send_bit;
 //        err_code = ble_lbs_on_button_change(m_conn_handle, &m_lbs, send_bit);
@@ -843,9 +842,8 @@ int main(void)
 //        {
 //            APP_ERROR_CHECK(err_code);
 //        }
+#endif//Test_MODE
         idle_state_handle();
-        
-        //NRF_LOG_INFO("Current Distance: %d\n", p_value);
     }
 }
 
