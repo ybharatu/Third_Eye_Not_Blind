@@ -46,6 +46,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
+
 #include "nrf_sdh.h"
 #include "nrf_sdh_ble.h"
 #include "nrf_sdh_soc.h"
@@ -53,8 +56,15 @@
 #include "app_timer.h"
 #include "boards.h"
 #include "bsp.h"
+
+//Bluetooth includes
 #include "bsp_btn_ble.h"
 #include "ble.h"
+#include "ble_err.h"
+#include "ble_hci.h"
+#include "ble_srv_common.h"
+#include "ble_advdata.h"
+#include "ble_conn_state.h"
 #include "ble_hci.h"
 #include "ble_advertising.h"
 #include "ble_conn_params.h"
@@ -69,51 +79,28 @@
 #include "nrf_saadc.h"
 #include "nrfx_saadc.h"
 #include "nrfx_timer.h"
+#include "nrfx_gpiote.h"
 
-#include <stdint.h>
-#include <string.h>
 #include "nordic_common.h"
 #include "nrf.h"
 #include "app_error.h"
-#include "ble.h"
-#include "ble_err.h"
-#include "ble_hci.h"
-#include "ble_srv_common.h"
-#include "ble_advdata.h"
-#include "ble_conn_state.h"
+
 #include "boards.h"
 #include "app_timer.h"
 #include "app_button.h"
 #include "ble_lbs.h"
 #include "nrf_ble_gatt.h"
-#include "nrf_ble_qwr.h"
 
-#include "nrf_log.h"
-#include "nrf_log_ctrl.h"
-#include "nrf_log_default_backends.h"
-
-///////
 #include "app_util_platform.h"
 #include "nrf_gpio.h"
-#include "nrf_delay.h"
-#include <string.h>
 
 //Gfx includes
 #include "nrf_gfx.h"
 #include "nrf_lcd.h"
 
 #include "nrfx_timer.h"
-#include "nrfx_timer.h"
 
 #include "app_pwm.h"
-#include "bsp.h"
-#include <stdbool.h>
-#include <stdint.h>
-#include "nrf.h"
-
-#include "nrfx_gpiote.h"
-
-#include "app_util_platform.h"
 
 #define CENTRAL_SCANNING_LED            BSP_BOARD_LED_0                     /**< Scanning LED will be on when the device is scanning. */
 #define CENTRAL_CONNECTED_LED_1         BSP_BOARD_LED_1                     /**< Connected LED will be on when the device is connected. */
@@ -155,15 +142,13 @@
 #define LEFT_LED                        16
 #define RIGHT_LED                       15
 #define SENSOR_PIN                      6
-#define PWM_PIN                         17
+#define SPEAKER_PIN                     17
 
 #define APP_BLE_OBSERVER_PRIO           3                                       /**< Application's BLE observer priority. You shouldn't need to modify this value. */
 #define APP_BLE_CONN_CFG_TAG            1                                       /**< A tag identifying the SoftDevice BLE configuration. */
 
 #define APP_ADV_INTERVAL                64                                      /**< The advertising interval (in units of 0.625 ms; this value corresponds to 40 ms). */
 #define APP_ADV_DURATION                BLE_GAP_ADV_TIMEOUT_GENERAL_UNLIMITED   /**< The advertising time-out (in units of seconds). When set to 0, we will never time out. */
-#define BUFFER_SIZE                     20
-
 
 #define MIN_CONN_INTERVAL               MSEC_TO_UNITS(100, UNIT_1_25_MS)        /**< Minimum acceptable connection interval (0.5 seconds). */
 #define MAX_CONN_INTERVAL               MSEC_TO_UNITS(200, UNIT_1_25_MS)        /**< Maximum acceptable connection interval (1 second). */
@@ -174,30 +159,30 @@
 #define NEXT_CONN_PARAMS_UPDATE_DELAY   APP_TIMER_TICKS(5000)                   /**< Time between each call to sd_ble_gap_conn_param_update after the first call (5 seconds). */
 #define MAX_CONN_PARAMS_UPDATE_COUNT    3                                       /**< Number of attempts before giving up the connection parameter negotiation. */
 
-#define BUTTON_DETECTION_DELAY          APP_TIMER_TICKS(50)                     /**< Delay from a GPIOTE event until a button is reported as pushed (in number of timer ticks). */
+NRF_BLE_SCAN_DEF(m_scan);                                                       /**< Scanning module instance. */
+NRF_BLE_GATT_DEF(m_gatt);                                                       /**< GATT module instance. */
+BLE_LBS_C_ARRAY_DEF(m_ble_lbs_c, NRF_SDH_BLE_CENTRAL_LINK_COUNT);               /**< LED button client instances. */
+BLE_DB_DISCOVERY_ARRAY_DEF(m_db_disc, NRF_SDH_BLE_CENTRAL_LINK_COUNT);          /**< Database discovery module instances. */
 
-NRF_BLE_SCAN_DEF(m_scan);                                       /**< Scanning module instance. */
-//BLE_LBS_C_DEF(m_ble_lbs_c);                                     /**< Main structure used by the LBS client module. */
-NRF_BLE_GATT_DEF(m_gatt);                                       /**< GATT module instance. */
-//BLE_DB_DISCOVERY_DEF(m_db_disc);                                /**< DB discovery module instance. */
-BLE_LBS_C_ARRAY_DEF(m_ble_lbs_c, NRF_SDH_BLE_CENTRAL_LINK_COUNT);           /**< LED button client instances. */
-BLE_DB_DISCOVERY_ARRAY_DEF(m_db_disc, NRF_SDH_BLE_CENTRAL_LINK_COUNT);  /**< Database discovery module instances. */
-
-static char const m_target_periph_name[] = "Yash_Blinky";     /**< Name of the device we try to connect to. This name is searched in the scan report data*/
+static char const m_target_periph_name_left[] = "Left_Peripheral";              /**< Name of the device we try to connect to. This name is searched in the scan report data*/
+static char const m_target_periph_name_right[] = "Right_Peripheral";
 
 static nrf_saadc_value_t m_buffer[SAMPLES_IN_BUFFER];
 
-uint8_t i = 0;
-uint8_t rect_status = 0;
-uint8_t object_close = 0;
-uint8_t draw_right = 0;
-uint8_t draw_left = 0;
-uint8_t draw_text = 0;
-uint8_t curr_drift = 0;
-uint32_t distance = 0;
-uint32_t atd_result = 0;
-uint32_t drift_error = 0;
-uint32_t draw_ble = 1;
+uint8_t  rect_status  = 0;
+uint8_t  object_close = 0;
+uint8_t  object_left = 0;
+uint8_t  object_right = 0;
+uint8_t  draw_right   = 0;
+uint8_t  draw_left    = 0;
+uint8_t  draw_text    = 0;
+uint8_t  curr_drift   = 0;
+uint32_t distance     = 0;
+uint32_t atd_result   = 0;
+uint32_t drift_error  = 0;
+uint32_t draw_ble     = 1;
+int8_t left_conn_handle = -1;
+int8_t right_conn_handle = -1;
 
 static uint8_t m_adv_handle = BLE_GAP_ADV_SET_HANDLE_NOT_SET;                   /**< Advertising handle used to identify an advertising set. */
 static uint8_t m_enc_advdata[BLE_GAP_ADV_SET_DATA_SIZE_MAX];                    /**< Buffer for storing an encoded advertising set. */
@@ -210,14 +195,48 @@ APP_PWM_INSTANCE(PWM1,3);                   // Create the instance "PWM1" using 
 
 static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID;                        /**< Handle of the current connection. */
 
-char * close = "CLOSE:    ";
-char * far = "FAR:    ";
+char * close = "CLOSE";
+char * far = "FAR";
 const char * text = "";
 
 extern const nrf_gfx_font_desc_t orkney_24ptFontInfo;
 extern nrf_lcd_t nrf_lcd_ili9341;
 nrf_lcd_t* lcd = &nrf_lcd_ili9341;
 static const nrf_gfx_font_desc_t * p_font = &orkney_24ptFontInfo;
+
+//Graphics init for the 2 lane lines
+int offset = 100;
+int width = 20;
+int height = 40;
+
+//Drifting flags
+int draw_r1;
+int draw_r2;
+int draw_r3;
+int draw_l1;
+int draw_l2;
+int draw_l3;
+
+//Flags for speaker
+int sound_object = 0;
+int sound_drift_left = 0;
+int sound_drift_right = 0;
+float volume;
+
+//Volume SAADC variables
+nrf_saadc_value_t p_value = 0;
+static nrf_saadc_value_t m_buffer[SAMPLES_IN_BUFFER];
+
+//Graphics Init for the bluetooth Logo
+#define SCALE     8
+#define START_RX  30
+#define START_RY  40
+#define START_LX  START_RX
+#define START_LY  320 - START_RY + SCALE*2
+#define THICKNESS 4
+
+//Graphics for the Red Circle over the logos
+#define circ_thick 5
 
 /**@brief Function to handle asserts in the SoftDevice.
  *
@@ -235,6 +254,54 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
     app_error_handler(0xDEADBEEF, line_num, p_file_name);
 }
 
+/************************************************
+* Gets called when SAADC is invoked 
+* (nrf_drv_saadc_sample()) in timer interrupt
+************************************************/
+void saadc_callback(nrfx_saadc_evt_t const * p_event)
+{
+    if (p_event->type == NRFX_SAADC_EVT_DONE)
+    {
+        ret_code_t err_code;
+
+        err_code = nrfx_saadc_buffer_convert(p_event->data.done.p_buffer, SAMPLES_IN_BUFFER);
+        APP_ERROR_CHECK(err_code);
+        p_value = p_event->data.done.p_buffer[0];
+
+        //NRF_LOG_INFO("Volume: %d", p_value);
+        if(p_value < 0){
+          p_value = 0;
+        }
+        volume = 50 * (p_value / 1024.0);
+        NRF_LOG_INFO("Volume: %d", volume);
+
+    }
+}
+
+/************************************************
+* Initializes ATD to sample analog input 6
+************************************************/
+void saadc_init(void)
+{
+    ret_code_t err_code;
+    static const nrfx_saadc_config_t default_config = NRFX_SAADC_DEFAULT_CONFIG;
+    nrf_saadc_channel_config_t channel_config 
+        = NRFX_SAADC_DEFAULT_CHANNEL_CONFIG_SE(NRF_SAADC_INPUT_AIN5);
+    
+    //channel_config.gain = NRF_SAADC_GAIN1;
+
+    err_code = nrfx_saadc_init(&default_config, saadc_callback);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = nrfx_saadc_channel_init(0, &channel_config);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = nrfx_saadc_buffer_convert(m_buffer, SAMPLES_IN_BUFFER);
+    APP_ERROR_CHECK(err_code);
+}
+
+
+
 /**@brief Function to start scanning.
  */
 static void scan_start(void)
@@ -243,11 +310,6 @@ static void scan_start(void)
 
     err_code = nrf_ble_scan_start(&m_scan);
     APP_ERROR_CHECK(err_code);
-
-    bsp_board_led_off(CENTRAL_CONNECTED_LED_1);
-//    nrf_gpio_pin_write(CENTRAL_CONNECTED_LED,0);
-    bsp_board_led_on(CENTRAL_SCANNING_LED);
-//    nrf_gpio_pin_write(CENTRAL_SCANNING_LED,0);
 }
 
 static volatile bool ready_flag;            // A flag indicating PWM status.
@@ -261,10 +323,10 @@ void pwm_init(void){
     ret_code_t err_code;
     
     /* 2-channel PWM, 200Hz, output on DK LED pins. */
-    app_pwm_config_t pwm1_cfg = APP_PWM_DEFAULT_CONFIG_1CH(5000L, PWM_PIN);
+    app_pwm_config_t pwm1_cfg = APP_PWM_DEFAULT_CONFIG_1CH(5000L, SPEAKER_PIN);
 
     /* Switch the polarity of the second channel. */
-    //pwm1_cfg.pin_polarity[1] = APP_PWM_POLARITY_ACTIVE_HIGH;
+    pwm1_cfg.pin_polarity[0] = APP_PWM_POLARITY_ACTIVE_HIGH;
 
     /* Initialize and enable PWM. */
     err_code = app_pwm_init(&PWM1,&pwm1_cfg,pwm_ready_callback);
@@ -287,62 +349,84 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 
     // For readability.
     ble_gap_evt_t const * p_gap_evt = &p_ble_evt->evt.gap_evt;
-
-    if(ble_conn_state_central_conn_count() == NRF_SDH_BLE_CENTRAL_LINK_COUNT){
-       bsp_board_led_on(CENTRAL_CONNECTED_LED_1);
-       bsp_board_led_on(CENTRAL_CONNECTED_LED_2);
-    }
-    else if(ble_conn_state_central_conn_count() == 1){
-       bsp_board_led_on(CENTRAL_CONNECTED_LED_1);
-       bsp_board_led_off(CENTRAL_CONNECTED_LED_2);
-    }
-    else{
-       bsp_board_led_off(CENTRAL_CONNECTED_LED_1);
-       bsp_board_led_off(CENTRAL_CONNECTED_LED_2);
-    }
+    int conn_count = ble_conn_state_central_conn_count();
 
     switch (p_ble_evt->header.evt_id)
     {
         // Upon connection, check which peripheral has connected (HR or RSC), initiate DB
         // discovery, update LEDs status and resume scanning if necessary. */
+        case BLE_GAP_EVT_ADV_REPORT:
+        {
+           ble_gap_evt_adv_report_t const * const p_adv_report = &p_ble_evt->evt.gap_evt.params.adv_report;
+
+           if(ble_advdata_name_find(p_adv_report->data.p_data,
+                                  p_adv_report->data.len,
+                                  m_target_periph_name_left)){
+             NRF_LOG_INFO("FOUND LEFT");
+             if(right_conn_handle == -1){
+               left_conn_handle = 0;
+             }else{
+               left_conn_handle = 1;
+             }
+           }else if(ble_advdata_name_find(p_adv_report->data.p_data,
+                                  p_adv_report->data.len,
+                                  m_target_periph_name_right)){
+             NRF_LOG_INFO("FOUND RIGHT");
+             right_conn_handle = p_gap_evt->conn_handle;
+              if(left_conn_handle == -1){
+                right_conn_handle = 0;
+              }else{
+                right_conn_handle = 1;
+              }
+           }
+
+        } break;
+
         case BLE_GAP_EVT_CONNECTED:
         {
+            ble_data_t adv_data = p_ble_evt->evt.gap_evt.params.adv_report.data;
+
+
             draw_ble = 1;
-            NRF_LOG_INFO("Connected.");
+            NRF_LOG_INFO("Connected %d", conn_count);
+
+//            err_code = adv_report_parse(BLE_GAP_AD_TYPE_COMPLETE_LOCAL_NAME,
+//                                  &adv_data,
+//                                  &type_data);
+
+            //NRF_LOG_INFO("%x",adv_data.p_data);
+
             err_code = ble_lbs_c_handles_assign(&m_ble_lbs_c[p_gap_evt->conn_handle], p_gap_evt->conn_handle, NULL);
             APP_ERROR_CHECK(err_code);
 
             err_code = ble_db_discovery_start(&m_db_disc[p_gap_evt->conn_handle], p_gap_evt->conn_handle);
             APP_ERROR_CHECK(err_code);
             
-            if (ble_conn_state_central_conn_count() == NRF_SDH_BLE_CENTRAL_LINK_COUNT)
+            if (conn_count < NRF_SDH_BLE_CENTRAL_LINK_COUNT)
             {
-                bsp_board_led_off(CENTRAL_SCANNING_LED);
-            }
-            else
-            {
-                // Resume scanning.
-                bsp_board_led_on(CENTRAL_SCANNING_LED);
                 scan_start();
             }
-
-            // Update LEDs status, and check if we should be looking for more
-            // peripherals to connect to.
-//            bsp_board_led_on(CENTRAL_CONNECTED_LED);
-//            nrf_gpio_pin_write(CENTRAL_CONNECTED_LED,1);
-//            bsp_board_led_off(CENTRAL_SCANNING_LED);
-//            nrf_gpio_pin_write(CENTRAL_SCANNING_LED,1);
         } break;
 
         // Upon disconnection, reset the connection handle of the peer which disconnected, update
         // the LEDs status and start scanning again.
         case BLE_GAP_EVT_DISCONNECTED:
         {
-            value = ble_conn_state_central_conn_count();
+            value = conn_count;
             draw_ble = 1;
+            if(p_gap_evt->conn_handle == left_conn_handle){
+              left_conn_handle = -1;
+            }else if(p_gap_evt->conn_handle == right_conn_handle){
+              right_conn_handle = -1;
+            }else{
+               NRF_LOG_INFO("UH OH");
+            }
+
             NRF_LOG_INFO("Disconnected, %d connections.", value);
-            
-            scan_start();
+            if (conn_count < NRF_SDH_BLE_CENTRAL_LINK_COUNT)
+            {
+                scan_start();
+            }
         } break;
 
         case BLE_GAP_EVT_TIMEOUT:
@@ -496,8 +580,6 @@ static void db_discovery_init(void)
 //GPIO Pin interrupt handler for the three pins from the raspberry pi
 nrfx_gpiote_evt_handler_t drifting_gpio_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t state)
 {
-    NRF_LOG_INFO("GPIO INTRPT");
-
     int pin_val = nrf_gpio_pin_read(pin);
 
     if(pin == DRIFT_LEFT_PIN){
@@ -505,29 +587,41 @@ nrfx_gpiote_evt_handler_t drifting_gpio_handler(nrfx_gpiote_pin_t pin, nrf_gpiot
             curr_drift = LEFT;
             draw_right = 0;
             draw_left = 1;
+            draw_l1 = 1;
             rect_status = 2;
+            sound_drift_left = 1;
+            sound_drift_right = 0;
         }else{
             curr_drift = CENTER;
             draw_right = 0;
             draw_left = 0;
             rect_status = 0;
+            sound_drift_left = 0;
+            sound_drift_right = 0;
         }
     }else if(pin == DRIFT_RIGHT_PIN){
         if(pin_val == 1){
             curr_drift = RIGHT;
-            draw_right = 0;
-            draw_left = 1;
+            draw_right = 1;
+            draw_r1 = 1;
+            draw_left = 0;
             rect_status = 2;
+            sound_drift_left = 0;
+            sound_drift_right = 1;
         }else{
             curr_drift = CENTER;
             draw_right = 0;
             draw_left = 0;
             rect_status = 0;
+            sound_drift_left = 0;
+            sound_drift_right = 0;
         }
     }else if(pin == ERROR_PIN){
         if(pin_val == 1){
             drift_error = 1;
+            rect_status = 0;
         }else{
+            rect_status = 0;
             drift_error = 0;
         }
     }
@@ -559,6 +653,7 @@ static void gpio_init(void)
     APP_ERROR_CHECK(err_code);
 
     nrf_gpio_cfg_output(LEFT_LED);
+    nrf_gpio_cfg_output(RIGHT_LED);
 
     nrfx_gpiote_in_event_enable(DRIFT_LEFT_PIN, true);
     nrfx_gpiote_in_event_enable(DRIFT_RIGHT_PIN, true);
@@ -589,13 +684,10 @@ static void lbs_c_evt_handler(ble_lbs_c_t * p_lbs_c, ble_lbs_c_evt_t * p_lbs_c_e
         {
             ret_code_t err_code;
 
-            err_code = ble_lbs_c_handles_assign(&m_ble_lbs_c,
-                                                p_lbs_c_evt->conn_handle,
-                                                &p_lbs_c_evt->params.peer_db);
+//            err_code = ble_lbs_c_handles_assign(&m_ble_lbs_c,
+//                                                p_lbs_c_evt->conn_handle,
+//                                                &p_lbs_c_evt->params.peer_db);
             NRF_LOG_INFO("LED Button service discovered on conn_handle 0x%x.", p_lbs_c_evt->conn_handle);
-
-//            err_code = app_button_enable();
-//            APP_ERROR_CHECK(err_code);
 
             // LED Button service discovered. Enable notification of Button.
             err_code = ble_lbs_c_button_notif_enable(p_lbs_c);
@@ -606,16 +698,6 @@ static void lbs_c_evt_handler(ble_lbs_c_t * p_lbs_c, ble_lbs_c_evt_t * p_lbs_c_e
         {
             draw_text = 1;
             NRF_LOG_INFO("Button state changed on peer to 0x%x.", p_lbs_c_evt->params.button.button_state);
-//            if (p_lbs_c_evt->params.button.button_state)
-//            {
-////                bsp_board_led_on(LEDBUTTON_LED);
-//                nrf_gpio_pin_write(LEDBUTTON_LED,0);
-//            }
-//            else
-//            {
-////                bsp_board_led_off(LEDBUTTON_LED);
-//                nrf_gpio_pin_write(LEDBUTTON_LED,1);
-//            }
               /************************************************
               * Actions if received "CLOSE" message from
               * peripheral micro:
@@ -625,8 +707,15 @@ static void lbs_c_evt_handler(ble_lbs_c_t * p_lbs_c, ble_lbs_c_evt_t * p_lbs_c_e
               if (p_lbs_c_evt->params.button.button_state)
               {
                   object_close = 1;
+                  sound_object = 1;
                   text = close;
-                  nrf_gpio_pin_write(LEFT_LED,1);
+                  if(p_lbs_c_evt->conn_handle == left_conn_handle){
+                    object_left = 1;
+                    nrf_gpio_pin_write(LEFT_LED,1);
+                  }else if(p_lbs_c_evt->conn_handle == right_conn_handle){
+                    object_right = 1;
+                    nrf_gpio_pin_write(RIGHT_LED,1);
+                  }
                   NRF_LOG_INFO("Received LED ON!");
               }
               /************************************************
@@ -638,8 +727,15 @@ static void lbs_c_evt_handler(ble_lbs_c_t * p_lbs_c, ble_lbs_c_evt_t * p_lbs_c_e
               else
               {
                   object_close = 0;
+                  sound_object = 0;
                   text = far;
-                  nrf_gpio_pin_write(LEFT_LED,0);
+                  if(p_lbs_c_evt->conn_handle == left_conn_handle){
+                    object_left = 0;
+                    nrf_gpio_pin_write(LEFT_LED,0);
+                  }else if(p_lbs_c_evt->conn_handle == right_conn_handle){
+                    object_right = 0;
+                    nrf_gpio_pin_write(RIGHT_LED,0);
+                  }
                   NRF_LOG_INFO("Received LED OFF!");
               }
         } break; // BLE_LBS_C_EVT_BUTTON_NOTIFICATION
@@ -659,28 +755,12 @@ static void lbs_c_init(void)
 
     lbs_c_init_obj.evt_handler = lbs_c_evt_handler;
 
-//    err_code = ble_lbs_c_init(&m_ble_lbs_c, &lbs_c_init_obj);
-//    APP_ERROR_CHECK(err_code);
+    //Initialize 2 central roles to find the peripherals
     for (uint32_t i = 0; i < NRF_SDH_BLE_CENTRAL_LINK_COUNT; i++)
     {
         err_code = ble_lbs_c_init(&m_ble_lbs_c[i], &lbs_c_init_obj);
         APP_ERROR_CHECK(err_code);
     }
-}
-
-/**@brief Function for the LEDs initialization.
- *
- * @details Initializes all LEDs used by the application.
- */
-static void leds_init(void)
-{
-    bsp_board_init(BSP_INIT_LEDS);
-//    nrf_gpio_cfg_output(LEDBUTTON_LED);
-//    nrf_gpio_cfg_output(CENTRAL_CONNECTED_LED);
-//    nrf_gpio_cfg_output(CENTRAL_SCANNING_LED);
-
-//    nrf_gpio_pin_write(CENTRAL_CONNECTED_LED,0);
-//    nrf_gpio_pin_write(CENTRAL_SCANNING_LED,1);
 }
 
 /**@brief Function for initializing the log.
@@ -737,7 +817,10 @@ static void scan_init(void)
     err_code = nrf_ble_scan_filters_enable(&m_scan, NRF_BLE_SCAN_NAME_FILTER, false);
     APP_ERROR_CHECK(err_code);
 
-    err_code = nrf_ble_scan_filter_set(&m_scan, SCAN_NAME_FILTER, m_target_periph_name);
+    err_code = nrf_ble_scan_filter_set(&m_scan, SCAN_NAME_FILTER, m_target_periph_name_left);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = nrf_ble_scan_filter_set(&m_scan, SCAN_NAME_FILTER, m_target_periph_name_right);
     APP_ERROR_CHECK(err_code);
 }
 
@@ -750,6 +833,64 @@ static void timers_init(void)
     // Initialize timer module, making it use the scheduler
     ret_code_t err_code = app_timer_init();
     APP_ERROR_CHECK(err_code);
+}
+
+nrfx_timer_event_handler_t drift_handle(void){
+    ret_code_t err_code;
+    if(draw_right){
+      if(draw_r1){
+        draw_r1 = 0;
+        draw_r2 = 1;
+      }
+      else if(draw_r2){
+        draw_r2 = 0;
+        draw_r3 = 1;
+      }
+      else if(draw_r3){
+        draw_r3 = 0;
+        draw_r1 = 1;
+      }
+    }
+    if(draw_left){
+      if(draw_l1){
+        draw_l1 = 0;
+        draw_l2 = 1;
+      }
+      else if(draw_l2){
+        draw_l2 = 0;
+        draw_l3 = 1;
+      }
+      else if(draw_l3){
+        draw_l3 = 0;
+        draw_l1 = 1;
+      }
+    }
+//    nrfx_saadc_sample();
+    NRF_LOG_FLUSH();
+    nrfx_timer_clear(&timer_us);
+   
+}
+
+/************************************************
+* Initializes timer to conduct ATD 20 times a
+* second (compare 1563)
+************************************************/
+void simple_timer_init(void){
+    const nrfx_timer_config_t timer_config = {
+    .frequency = NRF_TIMER_FREQ_31250Hz,
+    .bit_width = NRF_TIMER_BIT_WIDTH_24,
+    .interrupt_priority = 6,
+    .mode = NRF_TIMER_MODE_TIMER,
+    .p_context = NULL
+    };
+
+    nrfx_timer_init(&timer_us, &timer_config, (nrfx_timer_event_handler_t) drift_handle);
+    //nrfx_timer_compare(&timer_us, 0, 1563, true);
+
+    //Timer interrupt at 4 Hz
+    nrfx_timer_compare(&timer_us, 0, 6000, true);
+    
+    nrfx_timer_enable(&timer_us);
 }
 
 static void screen_clear(void)
@@ -777,7 +918,7 @@ static void on_conn_params_evt(ble_conn_params_evt_t * p_evt)
         err_code = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_CONN_INTERVAL_UNACCEPTABLE);
         APP_ERROR_CHECK(err_code);
     }
-}
+} 
 
 /**@brief Function for handling a Connection Parameters error.
  *
@@ -788,21 +929,89 @@ static void conn_params_error_handler(uint32_t nrf_error)
     APP_ERROR_HANDLER(nrf_error);
 }
 
+static void draw_circle(bool left, bool red){
+
+    //Graphics for the Red Circle over the logos
+    nrf_gfx_line_t l_line_red = NRF_GFX_LINE(START_LX,START_LY - SCALE*3,START_LX + SCALE*2,START_LY + SCALE,circ_thick);
+    nrf_gfx_circle_t l_circle = NRF_GFX_CIRCLE((START_LX + (START_LX + SCALE*2)) / 2, (START_LY - SCALE*3 + (START_LY + SCALE)) / 2, SCALE*3);
+    
+    nrf_gfx_line_t r_line_red = NRF_GFX_LINE(START_RX,START_RY - SCALE*3,START_RX + SCALE*2,START_RY + SCALE,circ_thick);
+    nrf_gfx_circle_t r_circle = NRF_GFX_CIRCLE((START_RX + (START_RX + SCALE*2)) / 2, (START_RY - SCALE*3 + (START_RY + SCALE)) / 2, SCALE*3);
+
+    nrf_gfx_circle_t circle;
+    nrf_gfx_line_t line;
+
+    int color;
+    if(red){
+      color = RED;
+    }else{
+      color = GRAY;
+    }
+
+    if(left){
+      circle = l_circle;
+      line = l_line_red;
+    }else{
+      circle = r_circle;
+      line = r_line_red;
+    }
+    nrf_gfx_line_draw(lcd, &line, color);
+    for(int i = 0; i < circ_thick; i++){
+      circle.r--;
+      nrf_gfx_circle_draw(lcd, &circle, color, false);
+    }
+    circle.r = SCALE*3;
+}
+
+static void draw_ble_logo(bool left, bool connected){
+
+    //Graphics Init for the bluetooth Logo
+    nrf_gfx_line_t blue_r1 = NRF_GFX_LINE(START_RX,START_RY,START_RX + SCALE*2,START_RY-SCALE*2,THICKNESS);
+    nrf_gfx_line_t blue_r2 = NRF_GFX_LINE(START_RX + SCALE*2,START_RY - SCALE*2,START_RX + SCALE*3,START_RY - SCALE*1,THICKNESS);
+    nrf_gfx_line_t blue_r3 = NRF_GFX_LINE(START_RX - SCALE*1,START_RY - SCALE*1,START_RX + SCALE*3 + THICKNESS,START_RY - SCALE*1,THICKNESS);
+    nrf_gfx_line_t blue_r4 = NRF_GFX_LINE(START_RX - SCALE*1,START_RY - SCALE*1,START_RX + SCALE*0,START_RY - SCALE*2,THICKNESS);
+    nrf_gfx_line_t blue_r5 = NRF_GFX_LINE(START_RX + SCALE*0,START_RY - SCALE*2,START_RX + SCALE*2,START_RY - SCALE*0,THICKNESS);
+
+    nrf_gfx_line_t blue_l1 = NRF_GFX_LINE(START_LX,START_LY,START_LX + SCALE*2,START_LY-SCALE*2,THICKNESS);
+    nrf_gfx_line_t blue_l2 = NRF_GFX_LINE(START_LX + SCALE*2,START_LY - SCALE*2,START_LX + SCALE*3,START_LY - SCALE*1,THICKNESS);
+    nrf_gfx_line_t blue_l3 = NRF_GFX_LINE(START_LX - SCALE*1,START_LY - SCALE*1,START_LX + SCALE*3 + THICKNESS,START_LY - SCALE*1,THICKNESS);
+    nrf_gfx_line_t blue_l4 = NRF_GFX_LINE(START_LX - SCALE*1,START_LY - SCALE*1,START_LX + SCALE*0,START_LY - SCALE*2,THICKNESS);
+    nrf_gfx_line_t blue_l5 = NRF_GFX_LINE(START_LX + SCALE*0,START_LY - SCALE*2,START_LX + SCALE*2,START_LY - SCALE*0,THICKNESS);
+
+    if(left){
+      draw_circle(left, false);
+      nrf_gfx_line_draw(lcd, &blue_l1,BLUE);
+      nrf_gfx_line_draw(lcd, &blue_l2,BLUE);
+      nrf_gfx_line_draw(lcd, &blue_l3,BLUE);
+      nrf_gfx_line_draw(lcd, &blue_l4,BLUE);
+      nrf_gfx_line_draw(lcd, &blue_l5,BLUE);
+    }else{
+      draw_circle(left,false);
+      nrf_gfx_line_draw(lcd, &blue_r1,BLUE);
+      nrf_gfx_line_draw(lcd, &blue_r2,BLUE);
+      nrf_gfx_line_draw(lcd, &blue_r3,BLUE);
+      nrf_gfx_line_draw(lcd, &blue_r4,BLUE);
+      nrf_gfx_line_draw(lcd, &blue_r5,BLUE);
+    }
+
+    if(!connected){
+       draw_circle(left,true);
+    }
+}
+
 int main(void)
 { 
     bsp_board_init(BSP_INIT_LEDS);
 
-
-//    Initialize.
+//  Initialize modules.
     gpio_init();
     log_init();
-    //leds_init();
     timers_init();
-    //buttons_init();
     pwm_init();
-
     nrf_gfx_init(lcd);
     power_management_init();
+    simple_timer_init();
+    //saadc_init();
 
     //BLE init
     ble_stack_init();
@@ -812,6 +1021,8 @@ int main(void)
     ble_conn_state_init();
     scan_init();
    
+    // Start execution.
+    NRF_LOG_INFO("Main Code started.");
     screen_clear();
 
     //Initialize the Screen
@@ -819,65 +1030,22 @@ int main(void)
     uint32_t value;
 
     //Graphics init for the 2 lane lines
-    int offset = 100;
-    int width = 20;
-    int height = 40;
-
-    nrf_gfx_rect_t right_rect_1 = NRF_GFX_RECT(50,offset,height,width);
+    //They are numbered Backwards to draw them from bottom to top
+    nrf_gfx_rect_t right_rect_3 = NRF_GFX_RECT(50,offset,height,width);
     nrf_gfx_rect_t right_rect_2 = NRF_GFX_RECT(100,offset,height,width);
-    nrf_gfx_rect_t right_rect_3 = NRF_GFX_RECT(150,offset,height,width);
+    nrf_gfx_rect_t right_rect_1 = NRF_GFX_RECT(150,offset,height,width);
+    nrf_gfx_rect_t left_rect_3 =  NRF_GFX_RECT(50,320-offset-width,height,width);
+    nrf_gfx_rect_t left_rect_2 =  NRF_GFX_RECT(100,320-offset-width,height,width);
+    nrf_gfx_rect_t left_rect_1 =  NRF_GFX_RECT(150,320-offset-width,height,width);
 
-    nrf_gfx_rect_t left_rect_1 = NRF_GFX_RECT(50,320-offset-width,height,width);
-    nrf_gfx_rect_t left_rect_2 = NRF_GFX_RECT(100,320-offset-width,height,width);
-    nrf_gfx_rect_t left_rect_3 = NRF_GFX_RECT(150,320-offset-width,height,width);
+    nrf_gfx_rect_t right_rect_red_3 = NRF_GFX_RECT(50 +THICKNESS,offset+THICKNESS,height-THICKNESS*2,width-THICKNESS*2);
+    nrf_gfx_rect_t right_rect_red_2 = NRF_GFX_RECT(100+THICKNESS,offset+THICKNESS,height-THICKNESS*2,width-THICKNESS*2);
+    nrf_gfx_rect_t right_rect_red_1 = NRF_GFX_RECT(150+THICKNESS,offset+THICKNESS,height-THICKNESS*2,width-THICKNESS*2);
+    nrf_gfx_rect_t left_rect_red_3 =  NRF_GFX_RECT(50 +THICKNESS,320-offset-width+THICKNESS,height-THICKNESS*2,width-THICKNESS*2);
+    nrf_gfx_rect_t left_rect_red_2 =  NRF_GFX_RECT(100+THICKNESS,320-offset-width+THICKNESS,height-THICKNESS*2,width-THICKNESS*2);
+    nrf_gfx_rect_t left_rect_red_1 =  NRF_GFX_RECT(150+THICKNESS,320-offset-width+THICKNESS,height-THICKNESS*2,width-THICKNESS*2);
 
-
-    //Graphics Init for the bluetooth Logo
-    int scale = 10;
-    int start_rx = 30;
-    int start_ry = 40;
-    int start_lx = start_rx;
-    int start_ly = 320 - start_ry + scale*2;
-    int thickness = 4;
-
-    nrf_gfx_line_t blue_r1 = NRF_GFX_LINE(start_rx,start_ry,start_rx + scale*2,start_ry-scale*2,thickness);
-    nrf_gfx_line_t blue_r2 = NRF_GFX_LINE(start_rx + scale*2,start_ry - scale*2,start_rx + scale*3,start_ry - scale*1,thickness);
-    nrf_gfx_line_t blue_r3 = NRF_GFX_LINE(start_rx - scale*1,start_ry - scale*1,start_rx + scale*3 + thickness,start_ry - scale*1,thickness);
-    nrf_gfx_line_t blue_r4 = NRF_GFX_LINE(start_rx - scale*1,start_ry - scale*1,start_rx + scale*0,start_ry - scale*2,thickness);
-    nrf_gfx_line_t blue_r5 = NRF_GFX_LINE(start_rx + scale*0,start_ry - scale*2,start_rx + scale*2,start_ry - scale*0,thickness);
-
-    nrf_gfx_line_t blue_l1 = NRF_GFX_LINE(start_lx,start_ly,start_lx + scale*2,start_ly-scale*2,thickness);
-    nrf_gfx_line_t blue_l2 = NRF_GFX_LINE(start_lx + scale*2,start_ly - scale*2,start_lx + scale*3,start_ly - scale*1,thickness);
-    nrf_gfx_line_t blue_l3 = NRF_GFX_LINE(start_lx - scale*1,start_ly - scale*1,start_lx + scale*3 + thickness,start_ly - scale*1,thickness);
-    nrf_gfx_line_t blue_l4 = NRF_GFX_LINE(start_lx - scale*1,start_ly - scale*1,start_lx + scale*0,start_ly - scale*2,thickness);
-    nrf_gfx_line_t blue_l5 = NRF_GFX_LINE(start_lx + scale*0,start_ly - scale*2,start_lx + scale*2,start_ly - scale*0,thickness);
-
-    //Graphics for the Red Circle over the logo
-    int circ_thick = 5;
-
-    nrf_gfx_line_t l_line_red = NRF_GFX_LINE(start_lx,start_ly - scale*3,start_lx + scale*2,start_ly + scale,circ_thick);
-    nrf_gfx_circle_t l_circle = NRF_GFX_CIRCLE((start_lx + (start_lx + scale*2)) / 2, (start_ly - scale*3 + (start_ly + scale)) / 2, scale*3);
-    
-    nrf_gfx_line_t r_line_red = NRF_GFX_LINE(start_rx,start_ry - scale*3,start_rx + scale*2,start_ry + scale,circ_thick);
-    nrf_gfx_circle_t r_circle = NRF_GFX_CIRCLE((start_rx + (start_rx + scale*2)) / 2, (start_ry - scale*3 + (start_ry + scale)) / 2, scale*3);
-
-
-    // Start execution.
-    NRF_LOG_INFO("Main Code started.");
     scan_start();
-    bsp_board_led_on(CENTRAL_SCANNING_LED);
-
-    nrf_gfx_line_draw(lcd, &blue_r1,BLUE);
-    nrf_gfx_line_draw(lcd, &blue_r2,BLUE);
-    nrf_gfx_line_draw(lcd, &blue_r3,BLUE);
-    nrf_gfx_line_draw(lcd, &blue_r4,BLUE);
-    nrf_gfx_line_draw(lcd, &blue_r5,BLUE);
-
-    nrf_gfx_line_draw(lcd, &blue_l1,BLUE);
-    nrf_gfx_line_draw(lcd, &blue_l2,BLUE);
-    nrf_gfx_line_draw(lcd, &blue_l3,BLUE);
-    nrf_gfx_line_draw(lcd, &blue_l4,BLUE);
-    nrf_gfx_line_draw(lcd, &blue_l5,BLUE);
 
     nrf_gfx_rect_draw(lcd, &left_rect_1,2,BLACK,false);
     nrf_gfx_rect_draw(lcd, &left_rect_2,2,BLACK,false);
@@ -889,86 +1057,95 @@ int main(void)
     
     while (true)
     {
+      if(draw_ble == 1){
+          draw_ble = 0;
+          if (left_conn_handle != -1 && right_conn_handle != -1){
+              draw_ble_logo(true,true);
+              draw_ble_logo(false,true);
+          }
+          else if(left_conn_handle != -1){
+              draw_ble_logo(true,true);
+              draw_ble_logo(false,false);
+          }
+          else if(right_conn_handle != -1){
+              draw_ble_logo(true,false);
+              draw_ble_logo(false,true);
+          }
+          else{
+              draw_ble_logo(true,false);
+              draw_ble_logo(false,false);
+          }
+      }
 
-      if (ble_conn_state_central_conn_count() > 0 && draw_ble == 1)
-        {
-            //Clear The no bluetooth symbol and redraw the bluetooth logo
-            draw_ble = 0;
-            nrf_gfx_line_draw(lcd, &l_line_red, GRAY);
-            nrf_gfx_circle_draw(lcd, &l_circle, GRAY, true);
-            nrf_gfx_line_draw(lcd, &blue_l1,BLUE);
-            nrf_gfx_line_draw(lcd, &blue_l2,BLUE);
-            nrf_gfx_line_draw(lcd, &blue_l3,BLUE);
-            nrf_gfx_line_draw(lcd, &blue_l4,BLUE);
-            nrf_gfx_line_draw(lcd, &blue_l5,BLUE);
-        }
-      else if(draw_ble == 1)
-        {
-            //Draw Left no bluetooth symbol
-            draw_ble = 0;
-            nrf_gfx_line_draw(lcd, &l_line_red, RED);
-            for(int i = 0; i < circ_thick; i++){
-              l_circle.r--;
-              nrf_gfx_circle_draw(lcd, &l_circle, RED, false);
-            }
-            l_circle.r = scale*3;
-
-            //Draw Right no bluetooth symbol
-            nrf_gfx_line_draw(lcd, &r_line_red, RED);
-            for(int i = 0; i < circ_thick; i++){
-              r_circle.r--;
-              nrf_gfx_circle_draw(lcd, &r_circle, RED, false);
-            }
-            r_circle.r = scale*3;
-        }
-
-      if(object_close){
+      if((object_left && sound_drift_left) || (object_right && sound_drift_right)){
         /* Set the duty cycle - keep trying until PWM is ready... */
         NRF_LOG_INFO("OBJECT IS CLOSE. SHOULD MAKE NOISE!");
         ready_flag = false;
+        
         while (app_pwm_channel_duty_set(&PWM1, 0, 50) == NRF_ERROR_BUSY);      
       }
       else{
           app_pwm_channel_duty_set(&PWM1, 0, 0);
       }
+      if(!drift_error){
+        if(rect_status == 0){
+            //Draw the 2 Lane Rectangles
+            rect_status = 1;
+            nrf_gfx_rect_draw(lcd, &left_rect_1,2,GRAY,true);
+            nrf_gfx_rect_draw(lcd, &left_rect_2,2,GRAY,true);
+            nrf_gfx_rect_draw(lcd, &left_rect_3,2,GRAY,true);
 
-      if(draw_text){
-            draw_text = 0;
-            //nrf_gfx_rotation_set(lcd, NRF_LCD_ROTATE_270 );
-            nrf_gfx_rect_draw(lcd,&wipe_text,10,GRAY,true);
-            nrf_gfx_point_t text_start = NRF_GFX_POINT(5, nrf_gfx_height_get(lcd) - 50);
-            APP_ERROR_CHECK(nrf_gfx_print(lcd, &text_start, 0, text, p_font, true));
-            //nrf_gfx_rotation_set(lcd, NRF_LCD_ROTATE_90 );
-      }
-      if(draw_right){
-          draw_right = 0;
-          nrf_gfx_rect_draw(lcd, &right_rect_1,2,RED,true);
-          nrf_gfx_rect_draw(lcd, &right_rect_2,2,RED,true);
-          nrf_gfx_rect_draw(lcd, &right_rect_3,2,RED,true);
-      }
-      else if(draw_left){
-          draw_left = 0;
-          nrf_gfx_rect_draw(lcd, &left_rect_1,2,RED,true);
-          nrf_gfx_rect_draw(lcd, &left_rect_2,2,RED,true);
-          nrf_gfx_rect_draw(lcd, &left_rect_3,2,RED,true);
-      }
-      else if(rect_status == 0){
-          rect_status = 1;
-          nrf_gfx_rect_draw(lcd, &left_rect_1,2,GRAY,true);
-          nrf_gfx_rect_draw(lcd, &left_rect_2,2,GRAY,true);
-          nrf_gfx_rect_draw(lcd, &left_rect_3,2,GRAY,true);
+            nrf_gfx_rect_draw(lcd, &right_rect_1,2,GRAY,true);
+            nrf_gfx_rect_draw(lcd, &right_rect_2,2,GRAY,true);
+            nrf_gfx_rect_draw(lcd, &right_rect_3,2,GRAY,true);
 
-          nrf_gfx_rect_draw(lcd, &right_rect_1,2,GRAY,true);
-          nrf_gfx_rect_draw(lcd, &right_rect_2,2,GRAY,true);
-          nrf_gfx_rect_draw(lcd, &right_rect_3,2,GRAY,true);
+            nrf_gfx_rect_draw(lcd, &left_rect_1,2,BLACK,false);
+            nrf_gfx_rect_draw(lcd, &left_rect_2,2,BLACK,false);
+            nrf_gfx_rect_draw(lcd, &left_rect_3,2,BLACK,false);
+                                              
+            nrf_gfx_rect_draw(lcd, &right_rect_1,2,BLACK,false);
+            nrf_gfx_rect_draw(lcd, &right_rect_2,2,BLACK,false);
+            nrf_gfx_rect_draw(lcd, &right_rect_3,2,BLACK,false);
+        }
+        if(draw_right){
+            if(draw_r1){
+              nrf_gfx_rect_draw(lcd, &right_rect_red_1,2,RED,true);
+              nrf_gfx_rect_draw(lcd, &right_rect_red_3,2,GRAY,true);
+            }
+            if(draw_r2){
+              nrf_gfx_rect_draw(lcd, &right_rect_red_2,2,RED,true);
+              nrf_gfx_rect_draw(lcd, &right_rect_red_1,2,GRAY,true);
+            }
+            if(draw_r3){
+              nrf_gfx_rect_draw(lcd, &right_rect_red_3,2,RED,true);
+              nrf_gfx_rect_draw(lcd, &right_rect_red_2,2,GRAY,true);
+            }
+        }
+        else if(draw_left){
+            if(draw_l1){
+              nrf_gfx_rect_draw(lcd, &left_rect_red_1,2,RED,true);
+              nrf_gfx_rect_draw(lcd, &left_rect_red_3,2,GRAY,true);
+            }
+            if(draw_l2){
+              nrf_gfx_rect_draw(lcd, &left_rect_red_2,2,RED,true);
+              nrf_gfx_rect_draw(lcd, &left_rect_red_1,2,GRAY,true);
+            }
+            if(draw_l3){
+              nrf_gfx_rect_draw(lcd, &left_rect_red_3,2,RED,true);
+              nrf_gfx_rect_draw(lcd, &left_rect_red_2,2,GRAY,true);
+            }
+        }
+      }else{
+          if(rect_status == 0){
+            rect_status = 1;
+            nrf_gfx_rect_draw(lcd, &left_rect_1,2,GRAY,true);
+            nrf_gfx_rect_draw(lcd, &left_rect_2,2,GRAY,true);
+            nrf_gfx_rect_draw(lcd, &left_rect_3,2,GRAY,true);
 
-          nrf_gfx_rect_draw(lcd, &left_rect_1,2,BLACK,false);
-          nrf_gfx_rect_draw(lcd, &left_rect_2,2,BLACK,false);
-          nrf_gfx_rect_draw(lcd, &left_rect_3,2,BLACK,false);
-                                                
-          nrf_gfx_rect_draw(lcd, &right_rect_1,2,BLACK,false);
-          nrf_gfx_rect_draw(lcd, &right_rect_2,2,BLACK,false);
-          nrf_gfx_rect_draw(lcd, &right_rect_3,2,BLACK,false);
+            nrf_gfx_rect_draw(lcd, &right_rect_1,2,GRAY,true);
+            nrf_gfx_rect_draw(lcd, &right_rect_2,2,GRAY,true);
+            nrf_gfx_rect_draw(lcd, &right_rect_3,2,GRAY,true);
+          }
       }
       idle_state_handle();
     }
